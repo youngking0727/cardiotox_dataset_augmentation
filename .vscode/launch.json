@@ -1,0 +1,101 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "运行Pipeline (样本测试)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/run_pipeline.py",
+      "console": "integratedTerminal",
+      "python": "/AIRvePFS/dair/conda_envs/cad_new/bin/python",
+      "args": [
+        "--sample",
+        "5",
+        "--diqta",
+        "data/input/diqta.csv",
+        "--output",
+        "data/output/evidence_bundles.jsonl"
+      ],
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/src"
+      }
+    },
+    {
+      "name": "运行Pipeline (全部数据)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/run_pipeline.py",
+      "console": "integratedTerminal",
+      "python": "/AIRvePFS/dair/conda_envs/cad_new/bin/python",
+      "args": [
+        "--sample",
+        "0",
+        "--diqta",
+        "data/input/diqta.csv",
+        "--output",
+        "data/output/evidence_bundles.jsonl"
+      ],
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/src"
+      }
+    },
+    {
+      "name": "调试M1相似性检索",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/src/m1_similarity.py",
+      "console": "integratedTerminal",
+      "python": "/AIRvePFS/dair/conda_envs/cad_new/bin/python",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/src"
+      }
+    },
+    {
+      "name": "调试M2理化性质计算",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/src/m2_physchem.py",
+      "console": "integratedTerminal",
+      "python": "/AIRvePFS/dair/conda_envs/cad_new/bin/python",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/src"
+      }
+    },
+    {
+      "name": "运行单元测试 (全部)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/tests",
+      "console": "integratedTerminal",
+      "python": "/AIRvePFS/dair/conda_envs/cad_new/bin/python",
+      "args": [
+        "-v"
+      ],
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/src"
+      }
+    },
+    {
+      "name": "运行单元测试 (当前文件)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal",
+      "python": "/AIRvePFS/dair/conda_envs/cad_new/bin/python",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/src"
+      }
+    },
+    {
+      "name": "Python: 当前文件",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal",
+      "python": "/AIRvePFS/dair/conda_envs/cad_new/bin/python",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/src"
+      }
+    }
+  ]
+}

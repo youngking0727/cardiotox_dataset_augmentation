@@ -1,0 +1,55 @@
+# 心脏毒性关键词配置
+
+# PubMed搜索关键词
+cardiotox_keywords:
+  - cardiotoxicity
+  - cardiac toxicity
+  - cardiovascular toxicity
+  - heart toxicity
+
+qt_keywords:
+  - "QT prolongation"
+  - "QT interval"
+  - "QTc prolongation"
+  - torsades
+  - torsade
+  - "Torsades de Pointes"
+
+arrhythmia_keywords:
+  - arrhythmia
+  - ventricular arrhythmia
+  - cardiac arrhythmia
+  - "sudden cardiac death"
+  - "ventricular fibrillation"
+  - "ventricular tachycardia"
+  - "atrial fibrillation"
+
+# 靶点相关关键词
+target_keywords:
+  - hERG
+  - HERG
+  - KCNH2
+  - Nav1.5
+  - SCN5A
+  - Cav1.2
+  - CACNA1C
+  - "L-type calcium channel"
+
+# 综述文章Mesh词（用于过滤）
+review_mesh_terms:
+  - Review
+  - Meta-Analysis
+  - "Systematic Review"
+  - Review, Tutorial
+  - Review, Clinical
+  - Review, Historical
+
+# 撤市原因关键词
+withdrawn_keywords:
+  - "QT prolongation"
+  - "torsades"
+  - "arrhythmia"
+  - "cardiac death"
+  - "ventricular"
+  - "sudden death"
+  - "heart failure"

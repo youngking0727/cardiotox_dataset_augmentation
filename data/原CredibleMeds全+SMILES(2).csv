@@ -1,0 +1,320 @@
+﻿Generic_Name,BrandNames,Drug_Class,TherapeuticUse,Category,SMEILS
+Abarelix  (Only on Non US Market),Plenaxis,GnRH Antagonist,Cancer (prostate),Possible Risk of TdP,C[C@H](C(=O)N)NC(=O)[C@@H]1CCCN1C(=O)[C@H](CCCCNC(C)C)NC(=O)[C@H](CC(C)C)NC(=O)[C@@H](CC(=O)N)NC(=O)[C@H](CC2=CC=C(C=C2)O)N(C)C(=O)[C@H](CO)NC(=O)[C@@H](CC3=CN=CC=C3)NC(=O)[C@@H](CC4=CC=C(C=C4)Cl)NC(=O)[C@@H](CC5=CC6=CC=CC=C6C=C5)NC(=O)C
+Abiraterone,"Zytiga, Abiratas, Abretone, Abirapro",Anti-androgen,Cancer (Prostate),Conditional Risk of TdP,[H][C@@]12CC=C(C3=CC=CN=C3)[C@@]1(C)CC[C@@]1([H])[C@@]2([H])CC=C2C[C@@H](O)CC[C@]12C
+Aclarubicin  (Only on Non US Market),"Aclacin, Aclacinomycine, Aclacinon, Aclaplastin, Jaclacin",Anti-cancer,Cancer,Known Risk of TdP,CC[C@]1(C[C@@H](C2=C(C3=C(C=C2[C@H]1C(=O)OC)C(=O)C4=C(C3=O)C(=CC=C4)O)O)O[C@H]5C[C@@H]([C@@H]([C@@H](O5)C)O[C@H]6C[C@@H]([C@@H]([C@@H](O6)C)O[C@H]7CCC(=O)[C@@H](O7)C)O)N(C)C)O
+Adagrasib,Krazati,RAS GTPase inhibitor,"cancer, non-small cell lung",Possible Risk of TdP,CN1CCC[C@H]1COC2=NC3=C(CCN(C3)C4=CC=CC5=C4C(=CC=C5)Cl)C(=N2)N6CCN([C@H](C6)CC#N)C(=O)C(=C)F
+Albuterol (salbutamol),"Proventil, Ventolin, Ventolin-HFA, Accuneb, Combivent, Vospire-ER, ProAir HFA, Duoneb",Bronchodilator,Asthma,SRSpecial Risk,CC(C)(C)NCC(C1=CC(=C(C=C1)O)CO)O
+Alfuzosin,Uroxatral,Alpha-1 adrenergic blocker,Benign prostatic hyperplasia,Possible Risk of TdP,CN(CCCNC(=O)C1CCCO1)C2=NC3=CC(=C(C=C3C(=N2)N)OC)OC
+Alimemazine (Trimeprazine)  (Only on Non US Market),"Nedeltran, Panectyl, Repeltin, Therafene, Theraligene, Theralen, Theralene, Vallergan, Vanectyl, Temaril",Antihistamine,Allergy,Possible Risk of TdP,CC(CN1C2=CC=CC=C2SC3=CC=CC=C31)CN(C)C
+Amantadine,"Symmetrel, Symadine",Antiviral,"Viral infection (Influenza), Parkinson's disease",Conditional Risk of TdP,C1C2CC3CC1CC(C2)(C3)N
+Amiodarone,"Cordarone, Pacerone, Nexterone",Antiarrhythmic,Arrhythmia,Known Risk of TdP,CCCCC1=C(C2=CC=CC=C2O1)C(=O)C3=CC(=C(C(=C3)I)OCCN(CC)CC)I
+Amisulpride,"Barhemsys, Solian, Supitac, Soltus, Amitrex, Amazeo","Antiemetic, Antipsychotic","Nausea and vomiting, postoperative",Conditional Risk of TdP,CCN1CCCC1CNC(=O)C2=CC(=C(C=C2OC)N)S(=O)(=O)CC
+Amitriptyline,"Elavil (Discontinued 6/13), Tryptomer, Tryptizol, Laroxyl, Saroten, Sarotex Lentizol, Endep","Antidepressant, Tricyclic",Depression,Conditional Risk of TdP,CN(C)CCC=C1C2=CC=CC=C2CCC3=CC=CC=C31
+Amphetamine (Amfetamine),"Adderal-XR, Dexedrine, Dextroamp",CNS stimulant,ADHD,SRSpecial Risk,CCNC(C)CC1=CC=CC=C1
+Amphotericin B,"Fungilin, Fungizone, Abelcet, AmBisome, Fungisome, Amphocil, Amphotec",Antifungal,Fungal infection,Conditional Risk of TdP,C[C@H]1/C=C/C=C/C=C/C=C/C=C/C=C/C=C/[C@@H](C[C@H]2[C@@H]([C@H](C[C@](O2)(C[C@H](C[C@H]([C@@H](CC[C@H](C[C@H](CC(=O)O[C@H]([C@@H]([C@@H]1O)C)C)O)O)O)O)O)O)O)C(=O)O)O[C@H]3[C@H]([C@H]([C@@H]([C@H](O3)C)O)N)O
+Amsacrine (Acridinyl anisidide)  (Only on Non US Market),Amsidine,Antineoplastic Agent,Cancer (Acute Lymphoblastic Leukemia),Conditional Risk of TdP,COC1=C(C=CC(=C1)NS(=O)(=O)C)NC2=C3C=CC=CC3=NC4=CC=CC=C42
+Anagrelide,"Agrylin, Xagrid",Phosphodiesterase 3 inhibitor,Thrombocythemia,Known Risk of TdP,C1C2=C(C=CC(=C2Cl)Cl)N=C3N1CC(=O)N3
+Apalutamide,Erleada,nonsteroidal antiandrogen,Cancer (prostate),Possible Risk of TdP,CNC(=O)C1=C(C=C(C=C1)N2C(=S)N(C(=O)C23CCC3)C4=CC(=C(N=C4)C#N)C(F)(F)F)F
+Apomorphine,"Apokyn, Ixense, Spontane, Uprima",Dopamine agonist,Parkinson's disease,Possible Risk of TdP,CN1CCC2=C3[C@H]1CC4=C(C3=CC=C2)C(=C(C=C4)O)O
+Arformoterol,Brovana,Bronchodilator,"Asthma, COPD",SRSpecial Risk,C[C@H](CC1=CC=C(C=C1)OC)NC[C@@H](C2=CC(=C(C=C2)O)NC=O)O
+Aripiprazole,"Abilify, Aripiprex","Antipsychotic, atypical","Schizophrenia, depression (adjunct)",Possible Risk of TdP,C1CC(=O)NC2=C1C=CC(=C2)OCCCCN3CCN(CC3)C4=C(C(=CC=C4)Cl)Cl
+Arsenic trioxide,Trisenox,Anti-cancer,Cancer (leukemia),Known Risk of TdP,O[As](O)O
+Artemether/Lumefantrine,Coartem,Anti-malarial,Marlaria,Possible Risk of TdP,CCCCN(CCCC)CC(C1=CC(=CC2=C1C3=C(/C2=C/C4=CC=C(C=C4)Cl)C=C(C=C3)Cl)Cl)O.C[C@@H]1CC[C@H]2[C@H]([C@H](O[C@H]3[C@@]24[C@H]1CCC(O3)(OO4)C)OC)C
+Artenimol/piperaquine  (Only on Non US Market),Eurartesim,Antimalarial,Malaria,Possible Risk of TdP,
+Asenapine,"Saphris, Sycrest","Antipsychotic, atypical",Schizophrenia,Possible Risk of TdP,CN1C[C@H]2[C@H](C1)C3=C(C=CC(=C3)Cl)OC4=CC=CC=C24
+Astemizole (Removed from US Market),Hismanal,Antihistamine,Allergic rhinitis,Known Risk of TdP,COC1=CC=C(C=C1)CCN2CCC(CC2)NC3=NC4=CC=CC=C4N3CC5=CC=C(C=C5)F
+Atazanavir,"Reyataz, Evotaz",Antiviral,Viral infection (HIV/AIDS),Conditional Risk of TdP,CC(C)(C)[C@@H](C(=O)N[C@@H](CC1=CC=CC=C1)[C@H](CN(CC2=CC=C(C=C2)C3=CC=CC=N3)NC(=O)[C@H](C(C)(C)C)NC(=O)OC)O)NC(=O)OC
+Atomoxetine,Strattera,CNS stimulant,ADHD,Possible Risk of TdP,CC1=CC=CC=C1O[C@H](CCNC)C2=CC=CC=C2
+Azithromycin,"Zithromax, Zmax",Antibiotic,Bacterial infection,Known Risk of TdP,CC[C@@H]1[C@@]([C@@H]([C@H](N(C[C@@H](C[C@@]([C@@H]([C@H]([C@@H]([C@H](C(=O)O1)C)O[C@H]2C[C@@]([C@H]([C@@H](O2)C)O)(C)OC)C)O[C@H]3[C@@H]([C@H](C[C@H](O3)C)N(C)C)O)(C)O)C)C)C)O)(C)O
+Bedaquiline,Sirturo,Antibiotic,"Tuberculosis, Multi-drug resistant",Possible Risk of TdP,CN(C)CC[C@@](C1=CC=CC2=CC=CC=C21)([C@H](C3=CC=CC=C3)C4=C(N=C5C=CC(=CC5=C4)Br)OC)O
+Bendamustine,"Treanda, Treakisym, Ribomustin, Levact",Anti-cancer,"Cancer (Leukemia, lymphoma)",Possible Risk of TdP,CN1C2=C(C=C(C=C2)N(CCCl)CCCl)N=C1CCCC(=O)O
+Bendroflumethiazide (Bendrofluazide),"Aprinox, Corzide","Diuretic, thiazide","Hypertension, diuresis",Conditional Risk of TdP,C1=CC=C(C=C1)CC2NC3=C(C=C(C(=C3)C(F)(F)F)S(=O)(=O)N)S(=O)(=O)N2
+Benzphetamine,"Didrex, Recede",,Obesity,SRSpecial Risk,C[C@@H](CC1=CC=CC=C1)N(C)CC1=CC=CC=C1
+Bepridil (Removed from US Market),Vascor,Antianginal,Angina Pectoris (heart pain),Known Risk of TdP,CC(C)COCC(CN(CC1=CC=CC=C1)C2=CC=CC=C2)N3CCCC3
+Betrixaban (Removed from US Market),Bevyxxa,Anticoagulant,Anticoagulant,Possible Risk of TdP,CN(C)C(=N)C1=CC=C(C=C1)C(=O)NC2=C(C=C(C=C2)OC)C(=O)NC3=NC=C(C=C3)Cl
+Bicalutamide,Casodex,Anti-androgen,Cancer (prostate),Possible Risk of TdP,CC(CS(=O)(=O)C1=CC=C(C=C1)F)(C(=O)NC2=CC(=C(C=C2)C#N)C(F)(F)F)O
+Bortezomib (Bortexomib),"Velcade, Bortecad",Proteasome inhibitor,"Cancer (multiple myeloma,lymphoma)",Possible Risk of TdP,B([C@H](CC(C)C)NC(=O)[C@H](CC1=CC=CC=C1)NC(=O)C2=NC=CN=C2)(O)O
+Bosutinib,Bosulif,Anti-cancer,Cancer (leukemia),Possible Risk of TdP,COC1=CC(NC2=C(C=NC3=CC(OCCCN4CCN(C)CC4)=C(OC)C=C23)C#N)=C(Cl)C=C1Cl
+Buprenorphine,"Butrans, Belbuca,  Bunavail, Buprenex, Subutex, Suboxone, Zubsolv",Opioid agonist,"Narcotic dependence, pain",Possible Risk of TdP,C[C@]([C@H]1C[C@@]23CC[C@@]1([C@H]4[C@@]25CCN([C@@H]3CC6=C5C(=C(C=C6)O)O4)CC7CC7)OC)(C(C)(C)C)O
+Cabozantinib,Cometriq,Anti-cancer,Cancer (renal cell),Possible Risk of TdP,COC1=CC2=C(C=CN=C2C=C1OC)OC3=CC=C(C=C3)NC(=O)C4(CC4)C(=O)NC5=CC=C(C=C5)F
+Capecitabine,Xeloda,Anti-cancer,"Cancer (GI, Breast)",Possible Risk of TdP,CCCCCOC(=O)NC1=NC(=O)N(C=C1F)[C@H]2[C@@H]([C@@H]([C@H](O2)C)O)O
+Carbetocin  (Only on Non US Market),"Pabal, Lonactene, Duratocin",uterotonic,Uterine atony,Possible Risk of TdP,CC[C@H](C)[C@H]1C(=O)N[C@H](C(=O)N[C@H](C(=O)N[C@@H](CSCCCC(=O)N[C@H](C(=O)N1)CC2=CC=C(C=C2)OC)C(=O)N3CCC[C@H]3C(=O)N[C@@H](CC(C)C)C(=O)NCC(=O)N)CC(=O)N)CCC(=O)N
+Ceritinib,Zykadia,Anti-cancer,Cancer (Lung),Possible Risk of TdP,CC1=CC(=C(C=C1C2CCNCC2)OC(C)C)NC3=NC=C(C(=N3)NC4=CC=CC=C4S(=O)(=O)C(C)C)Cl
+Cesium Chloride,Energy Catalyst,toxin,Alternative therapy cancer,Known Risk of TdP,[Cl-].[Cs+]
+Chloral hydrate,"Aquachloral, Novo-Chlorhydrate, Somnos, Noctec, Somnote",Sedative,"Sedation, insomnia",Conditional Risk of TdP,C(C(Cl)(Cl)Cl)(O)O
+Chloroquine,Aralen,Antimalarial,Malaria,Known Risk of TdP,CCN(CC)CCCC(C)NC1=C2C=CC(=CC2=NC=C1)Cl
+Chlorpromazine,"Thorazine, Largactil, Megaphen",Antipsychotic / Antiemetic,"Psychosis, nausea, many others",Known Risk of TdP,CN(C)CCCN1C2=CC=CC=C2SC3=C1C=C(C=C3)Cl
+Chlorprothixene  (Only on Non US Market),Truxal,Antipsychotic,Schizophrenia,Known Risk of TdP,CN(C)CC/C=C1/C2=CC=CC=C2SC3=C1C=C(C=C3)Cl
+,,,,,CN(C)CC/C=C1/C2=CC=CC=C2SC3=C1C=C(C=C3)Cl.Cl
+,,,,,CC(=O)O.CN(C)CC/C=C1/C2=CC=CC=C2SC3=C1C=C(C=C3)Cl
+,,,,,CN(C)CC/C=C1/C2=CC=CC=C2SC3=C1C=C(C=C3)Cl.C(C(=O)O)C(CC(=O)O)(C(=O)O)O
+Cilostazol,Pletal,Phosphodiesterase 3 inhibitor,Intermittent claudication,Known Risk of TdP,C1CCC(CC1)N2C(=NN=N2)CCCCOC3=CC4=C(C=C3)NC(=O)CC4
+Cimetidine,Tagamet,Antacid,"Gastric hyperacidity, GERD",Conditional Risk of TdP,CC1=C(N=CN1)CSCCNC(=NC)NC#N
+Ciprofloxacin,"Cipro, Cipro-XR, Neofloxin",Antibiotic,Bacterial infection,Known Risk of TdP,C1CC1N2C=C(C(=O)C3=CC(=C(C=C32)N4CCNCC4)F)C(=O)O
+Cisapride (Removed from US Market),Propulsid,GI stimulant,Increase GI motility,Known Risk of TdP,CO[C@H]1CN(CC[C@H]1NC(=O)C2=CC(=C(C=C2OC)N)Cl)CCCOC3=CC=C(C=C3)F
+Citalopram,"Celexa, Cipramil","Antidepressant, SSRI",Depression,Known Risk of TdP,CN(C)CCCC1(C2=C(CO1)C=C(C=C2)C#N)C3=CC=C(C=C3)F
+Clarithromycin,"Biaxin, Prevpac",Antibiotic,Bacterial infection,Known Risk of TdP,CC[C@@H]1[C@@]([C@@H]([C@H](C(=O)[C@@H](C[C@@]([C@@H]([C@H]([C@@H]([C@H](C(=O)O1)C)O[C@H]2C[C@@]([C@H]([C@@H](O2)C)O)(C)OC)C)O[C@H]3[C@@H]([C@H](C[C@H](O3)C)N(C)C)O)(C)OC)C)C)O)(C)O
+Clofazimine  (Only on Non US Market),Lamprene,Antibiotic,Leprosy,Conditional Risk of TdP,CCCCCCCCCCOCCC(C)O
+Clomipramine,Anafranil,"Antidepressant, Tricyclic",Depression,Conditional Risk of TdP,CN(C)CCCN1C2=CC=CC=C2CCC3=C1C=C(C=C3)Cl
+Clotiapine  (Only on Non US Market),Entumine,"Antipsychotic, atypical",Psychosis,Possible Risk of TdP,CN1CCN(CC1)C1=NC2=CC=CC=C2SC2=C1C=C(Cl)C=C2
+Clozapine,"Clozaril, Fazaclo, Versacloz","Antipsychotic, atypical",Schizophrenia,Possible Risk of TdP,CN1CCN(CC1)C2=NC3=C(C=CC(=C3)Cl)NC4=CC=CC=C42
+Cobimetinib,Cotellic,Anti-cancer,Cancer (Melanoma),Possible Risk of TdP,C1CCN[C@@H](C1)C2(CN(C2)C(=O)C3=C(C(=C(C=C3)F)F)NC4=C(C=C(C=C4)I)F)O
+Cocaine,Cocaine,Local anesthetic,Anesthesia (topical),Known Risk of TdP,CN1[C@H]2CC[C@@H]1[C@H]([C@H](C2)OC(=O)C3=CC=CC=C3)C(=O)OC
+Crizotinib,Xalkori,Anti-cancer,"Cancer (Non-small cell lung cancer, metastatic)",Possible Risk of TdP,C[C@H](C1=C(C=CC(=C1Cl)F)Cl)OC2=C(N=CC(=C2)C3=CN(N=C3)C4CCNCC4)N
+Cyamemazine (Cyamepromazine)  (Only on Non US Market),Tercian,Antipsychotic,"Schizophrenia, sedation",Possible Risk of TdP,CC(CN1C2=CC=CC=C2SC3=C1C=C(C=C3)C#N)CN(C)C
+Dabrafenib,Tafinlar,Anti-cancer,Cancer (melanoma),Possible Risk of TdP,CC(C)(C)C1=NC(=C(S1)C2=NC(=NC=C2)N)C3=C(C(=CC=C3)NS(=O)(=O)C4=C(C=CC=C4F)F)F
+Dasatinib,Sprycel,Anti-cancer,Cancer (leukemia),Possible Risk of TdP,CC1=C(C(=CC=C1)Cl)NC(=O)C2=CN=C(S2)NC3=CC(=NC(=N3)C)N4CCN(CC4)CCO
+Degarelix,"Firmagon, Ferring",Anti-androgen,Cancer (prostate),Possible Risk of TdP,C[C@H](C(=O)N)NC(=O)[C@@H]1CCCN1C(=O)[C@H](CCCCNC(C)C)NC(=O)[C@H](CC(C)C)NC(=O)[C@@H](CC2=CC=C(C=C2)NC(=O)N)NC(=O)[C@H](CC3=CC=C(C=C3)NC(=O)[C@@H]4CC(=O)NC(=O)N4)NC(=O)[C@H](CO)NC(=O)[C@@H](CC5=CN=CC=C5)NC(=O)[C@@H](CC6=CC=C(C=C6)Cl)NC(=O)[C@@H](CC7=CC8=CC=CC=C8C=C7)NC(=O)C
+Delamanid  (Only on Non US Market),Deltyba,Antibiotic,"Tuberculosis, Multi-drug resistant",Possible Risk of TdP,C[C@@]1(CN2C=C(N=C2O1)[N+](=O)[O-])COC3=CC=C(C=C3)N4CCC(CC4)OC5=CC=C(C=C5)OC(F)(F)F
+Desipramine,"Pertofrane, Norpramine","Antidepressant, Tricyclic",Depression,Possible Risk of TdP,CNCCCN1C2=CC=CC=C2CCC3=CC=CC=C31
+Dexmedetomidine,"Precedex, Dexdor, Dexdomitor, Igalmi",Sedative,Sedation,Possible Risk of TdP,CC1=C(C(=CC=C1)[C@H](C)C2=CN=CN2)C
+Dexmethylphenidate,"Focalin, Focalin-XR, Attenade",CNS stimulant,ADHD,SRSpecial Risk,COC(=O)[C@@H]([C@H]1CCCCN1)C2=CC=CC=C2
+Dextroamphetamine (Dexamfetamine),"Dexedrine, dexamphetamine, dexamfetamine, (S)-(+)-amphetamine, Dextrostat, Dexedrine, Metamina, Attentin, Zenzedi, Procentra, Amfexa",CNS stimulant,"ADHD, obesity",SRSpecial Risk,C[C@@H](CC1=CC=CC=C1)N
+Dextromethorphan/Quinidine,Nuedexta,Unknown,Pseudobulbar affect,Possible Risk of TdP,
+Diethylpropion (amfepramone),"Tenuate, Tepanil",Sympathomimetic,Obesity,SRSpecial Risk,CCN(CC)C(C)C(=O)C1=CC=CC=C1
+Diltiazem,Cardizem,Calcium channel blocker,Hypertension,Conditional Risk of TdP,CC(=O)O[C@@H]1[C@@H](SC2=CC=CC=C2N(C1=O)CCN(C)C)C3=CC=C(C=C3)OC
+Diphenhydramine,"Benadryl, Nytol, Unisom, Sominex, Dimedrol, Daedalon, Banophen",Antihistamine,"Allergic rhinitis, insomnia",Conditional Risk of TdP,CN(C)CCOC(C1=CC=CC=C1)C2=CC=CC=C2
+Disopyramide,Norpace,Antiarrhythmic,Arrhythmia,Known Risk of TdP,CC(C)N(CCC(C1=CC=CC=C1)(C2=CC=CC=N2)C(=O)N)C(C)C
+Dobutamine,Dobutrex,Inotrope,"Heart failure, shock (low blood pressure)",SRSpecial Risk,CC(CCC1=CC=C(C=C1)O)NCCC2=CC(=C(C=C2)O)O
+Dofetilide,Tikosyn,Antiarrhythmic,Arrhythmia,Known Risk of TdP,CN(CCC1=CC=C(C=C1)NS(=O)(=O)C)CCOC2=CC=C(C=C2)NS(=O)(=O)C
+Dolasetron,Anzemet,Antiemetic,"Nausea, vomiting",Possible Risk of TdP,CCCCCCOC(=O)NCCCOC(=O)N
+Domperidone  (Only on Non US Market),"Motilium, Motillium, Motinorm Costi, Nomit",Antiemetic,"Nausea, vomiting",Known Risk of TdP,C1CN(CCC1N2C3=C(C=C(C=C3)Cl)NC2=O)CCCN4C5=CC=CC=C5NC4=O
+Donepezil,Aricept,Cholinesterase inhibitor,Dementia (Alzheimer's Disease),Known Risk of TdP,COC1=C(C=C2C(=C1)CC(C2=O)CC3CCN(CC3)CC4=CC=CC=C4)OC
+Dopamine,Intropine,Inotrope,"Heart failure, shock (low blood pressure)",SRSpecial Risk,C1=CC(=C(C=C1CCN)O)O
+Doxepin,"Sinequan, Silenor, Aponal, Adapine, Doxal, Deptran, Sinquan","Antidepressant, Tricyclic",Depression,Conditional Risk of TdP,CN(C)CC/C=C/1C2=CC=CC=C2COC3=CC=CC=C31
+Dronedarone,Multaq,Antiarrhythmic,Arrhythmia,Known Risk of TdP,CCCCC1=C(C2=C(O1)C=CC(=C2)NS(=O)(=O)C)C(=O)C3=CC=C(C=C3)OCCCN(CCCC)CCCC
+Droperidol,"Inapsine, Droleptan, Dridol, Xomolix",Antipsychotic / Antiemetic,"Anesthesia (adjunct), nausea",Known Risk of TdP,C1CN(CC=C1N2C3=CC=CC=C3NC2=O)CCCC(=O)C4=CC=C(C=C4)F
+Droxidopa,Northera,Adrenergic pro-drug,Hypotension (Neurogenic orthostatic),SRSpecial Risk,C1=CC(=C(C=C1[C@H]([C@@H](C(=O)O)N)O)O)O
+Efavirenz,Sustiva,Antiviral,HIV/AIDS,Possible Risk of TdP,C1CC1C#C[C@]2(C3=C(C=CC(=C3)Cl)NC(=O)O2)C(F)(F)F
+Eliglustat,Cerdelga,Glucosylceramide synthase inhibitor,Gaucher's disease,Possible Risk of TdP,CCCCCCCC(=O)N[C@H](CN1CCCC1)[C@@H](C2=CC3=C(C=C2)OCCO3)O
+Encorafenib,Braftovi,BRAF inhibitor,Cancer (Melanoma),Possible Risk of TdP,COC(=O)N[C@@H](C)CNC1=NC=CC(=N1)C1=CN(N=C1C1=CC(Cl)=CC(NS(C)(=O)=O)=C1F)C(C)C
+Entrectinib,Rozlytrek,Anti-cancer,Cancer (Lung),Possible Risk of TdP,CN1CCN(CC1)C2=CC(=C(C=C2)C(=O)NC3=NNC4=C3C=C(C=C4)CC5=CC(=CC(=C5)F)F)NC6CCOCC6
+Eperisone  (Only on Non US Market),"Myonal, Epry",Antispasmodic,Spasticity,Conditional Risk of TdP,CCC1=CC=C(C=C1)C(=O)C(C)CN2CCCCC2
+Ephedrine,"Rynatuss, Broncholate","Bronchodilator, decongestant","Allergic reaction, allergic rhinitis, asthma",SRSpecial Risk,C[C@@H]([C@@H](C1=CC=CC=C1)O)NC
+Epinephrine (Adrenaline),"Primatene, Bronkaid","Catecholamine, vasoconstrictor","Allergic reaction, anaphylaxis, cardiac arrest",SRSpecial Risk,CNC[C@@H](C1=CC(=C(C=C1)O)O)O
+Epirubicin,"Ellence, Pharmorubicin, Epirubicin Ebewe",Anti-cancer,Cancer,Possible Risk of TdP,C[C@H]1[C@@H]([C@H](C[C@@H](O1)O[C@H]2C[C@@](CC3=C2C(=C4C(=C3O)C(=O)C5=C(C4=O)C(=CC=C5)OC)O)(C(=O)CO)O)N)O
+Eribulin mesylate,Halaven,Anti-cancer,"Cancer (breast, metastatic)",Possible Risk of TdP,C[C@@H]1C[C@@H]2CC[C@H]3C(=C)C[C@@H](O3)CC[C@]45C[C@@H]6[C@H](O4)[C@H]7[C@@H](O6)[C@@H](O5)[C@@H]8[C@@H](O7)CC[C@@H](O8)CC(=O)C[C@H]9[C@H](C[C@H](C1=C)O2)O[C@@H]([C@@H]9OC)C[C@@H](CN)O.CS(=O)(=O)O
+Erythromycin,"E.E.S., Robimycin, EMycin, Erymax, Ery-Tab, Eryc Ranbaxy, Erypar, Eryped, Erythrocin Stearate Filmtab, Erythrocot, E-Base, Erythroped, Ilosone, MY-E, Pediamycin, Abboticin, Abboticin-ES, Erycin, PCE Dispertab, Stiemycine, Acnasol, Tiloryth",Antibiotic,"Bacterial infection, increase GI motility",Known Risk of TdP,CC[C@@H]1[C@@]([C@@H]([C@H](C(=O)[C@@H](C[C@@]([C@@H]([C@H]([C@@H]([C@H](C(=O)O1)C)O[C@H]2C[C@@]([C@H]([C@@H](O2)C)O)(C)OC)C)O[C@H]3[C@@H]([C@H](C[C@H](O3)C)N(C)C)O)(C)O)C)C)O)(C)O
+Escitalopram,"Cipralex, Lexapro, Nexito, Anxiset-E, Exodus, Esto, Seroplex, Elicea, Lexamil, Lexam, Entact, Losita, Reposil, Animaxen, Esitalo, Lexamil","Antidepressant, SSRI","Depression (major), anxiety disorders",Known Risk of TdP,CN(C)CCC[C@@]1(C2=C(CO1)C=C(C=C2)C#N)C3=CC=C(C=C3)F
+Esomeprazole,"Nexium, Nexum, Inexium",Proton Pump Inhibitor,"Gastric hyperacidity, GERD",Conditional Risk of TdP,CC1=CN=C(C(=C1OC)C)C[S@](=O)C2=NC3=C(N2)C=C(C=C3)OC
+"Ezogabine (Retigabine) (Removed from US Market, Only on Non US Market)","Potiga, Trobalt",Anticonvulsant,"Seizures, Partial",Possible Risk of TdP,CCOC(=O)NC1=C(C=C(C=C1)NCC2=CC=C(C=C2)F)N
+Famotidine,"Pepcid, Fluxid, Quamatel",H2-receptor antagonist,"Gastric hyperacidity, GERD",Conditional Risk of TdP,C1=C(N=C(S1)N=C(N)N)CSCC/C(=N/S(=O)(=O)N)/N
+Felbamate,Felbatol,Anticonvulsant,Seizures,Possible Risk of TdP,C1=CC=C(C=C1)C(COC(=O)N)COC(=O)N
+Fenfluramine,Fintepla,anti convulsant,Seizures,SRSpecial Risk,CCNC(C)CC1=CC(=CC=C1)C(F)(F)F
+Fenoterol  (Only on Non US Market),"Berotec, Berodual N",bronchodilater,Asthma,SRSpecial Risk,CC(CC1=CC=C(C=C1)O)NCC(C2=CC(=CC(=C2)O)O)O
+Fexinidazole,Fexinidazole,Antiprotozoal,African trypanosomiasis,Possible Risk of TdP,CN1C(=CN=C1COC2=CC=C(C=C2)SC)[N+](=O)[O-]
+Fingolimod,Gilenya,Sphingosine phospate receptor modulator,Multiple Sclerosis,Possible Risk of TdP,CCCCCCCCC1=CC=C(C=C1)CCC(CO)(CO)N
+Flecainide,"Tambocor, Almarytm, Apocard, Ecrinal, Flécaine",Antiarrhythmic,Arrhythmia,Known Risk of TdP,C1CCNC(C1)CNC(=O)C2=C(C=CC(=C2)OCC(F)(F)F)OCC(F)(F)F
+Fluconazole,"Diflucan, Trican",Antifungal,Fungal infection,Known Risk of TdP,C1=CC(=C(C=C1F)F)C(CN2C=NC=N2)(CN3C=NC=N3)O
+Fluorouracil (5-FU),"Adrucil, Carac, Efudex, Efudix",Anti-cancer,Cancer,Possible Risk of TdP,C1=C(C(=O)NC(=O)N1)F
+Fluoxetine,"Prozac, Sarafem, Fontex","Antidepressant, SSRI",Depression,Conditional Risk of TdP,CNCCC(C1=CC=CC=C1)OC2=CC=C(C=C2)C(F)(F)F
+Flupentixol  (Only on Non US Market),"Depixol, Fluanxol",Antipsychotic,Schizophrenia,Possible Risk of TdP,C1CN(CCN1CC/C=C2/C3=CC=CC=C3SC4=C2C=C(C=C4)C(F)(F)F)CCO
+Fluticasone And Salmeterol,"Advair, Seretide",Bronchodilator,Asthma,SRSpecial Risk,
+Fluvoxamine,"Faverin, Fevarin, Floxyfral, Dumyrox, Luvox",Selective Serotonin Reuptake Inhibitor,"Depression, Obsessive Compulsive Disorder",Conditional Risk of TdP,COCCCC/C(=NOCCN)/C1=CC=C(C=C1)C(F)(F)F
+Formoterol,"Foradil, Foradile, Oxeze, Oxis, Atock, Atimos, Atimos Modulite, Perforomist, Dulera, Symbicort, Vannair, Quikhale FB",Bronchodilator,Asthma,SRSpecial Risk,CC(CC1=CC=C(C=C1)OC)NCC(C2=CC(=C(C=C2)O)NC=O)O
+Furosemide (frusemide),"Lasix, Fusid, Frumex, Lasilix",Diuretic,"Hypertension, diuresis",Conditional Risk of TdP,C1=COC(=C1)CNC2=CC(=C(C=C2C(=O)O)S(=O)(=O)N)Cl
+Galantamine,"Reminyl, Nivalin, Razadyne-ER, Lycoremine",Cholinesterase inhibitor,Dementia (Alzheimer's Disease),Conditional Risk of TdP,CN1CC[C@@]23C=C[C@@H](C[C@@H]2OC4=C(C=CC(=C34)C1)OC)O
+Garenoxacin  (Only on Non US Market),Geninax,Antibiotic,Bacterial infection,Conditional Risk of TdP,C[C@H]1NCC2=CC(=CC=C12)C1=CC=C2C(=O)C(=CN(C3CC3)C2=C1OC(F)F)C(O)=O
+Gatifloxacin (Removed from US Market),Tequin,Antibiotic,Bacterial infection,Known Risk of TdP,CC1CN(CCN1)C2=C(C=C3C(=C2OC)N(C=C(C3=O)C(=O)O)C4CC4)F
+Gemifloxacin,Factive,Antibiotic,Bacterial infection,Possible Risk of TdP,CO/N=C/1CN(CC1CN)C2=C(C=C3C(=O)C(=CN(C3=N2)C4CC4)C(=O)O)F
+Gepirone,Exxua,Antidepressant,"Depression, major",Possible Risk of TdP,CC1(C)CC(=O)N(CCCCN2CCN(CC2)C2=NC=CC=N2)C(=O)C1
+Gilteritinib,Xospata,Antineoplastic,Cancer (Acute Myeloid Leukemia),Possible Risk of TdP,CCC1=C(N=C(C(=N1)C(=O)N)NC2=CC(=C(C=C2)N3CCC(CC3)N4CCN(CC4)C)OC)NC5CCOCC5
+Givinostat,Duvyzat,Histone deacetylase inhibitor,Duchenne Muscular Dystrophy,Possible Risk of TdP,CCN(CC)CC1=CC2=C(C=C1)C=C(C=C2)COC(=O)NC3=CC=C(C=C3)C(=O)NO
+Glasdegib,Daurismo,Anti-cancer,Cancer (Acute myeloid leukemia),Possible Risk of TdP,CN1CC[C@H](C[C@@H]1C2=NC3=CC=CC=C3N2)NC(=O)NC4=CC=C(C=C4)C#N
+Granisetron,"Kytril, Sancuso, Granisol",Antiemetic,"Nausea, vomiting",Possible Risk of TdP,CN1C2CCCC1CC(C2)NC(=O)C3=NN(C4=CC=CC=C43)C
+Grepafloxacin (Removed from US Market),Raxar,Antibiotic,Bacterial infection,Known Risk of TdP,CC1CN(CCN1)C1=C(F)C(C)=C2C(=O)C(=CN(C3CC3)C2=C1)C(O)=O
+Halofantrine  (Only on Non US Market),Halfan,Antimalarial,Malaria,Known Risk of TdP,CCCCN(CCCC)CCC(C1=C2C=CC(=CC2=C3C=C(C=C(C3=C1)Cl)Cl)C(F)(F)F)O
+Haloperidol,"Haldol, Aloperidin, Bioperidolo, Brotopon, Dozic, Duraperidol, Einalon S, Eukystol, Halosten, Keselan, Linton, Peluces, Serenace, Serenase, Sigaperidol",Antipsychotic,"Schizophrenia, agitation",Known Risk of TdP,C1CN(CCC1(C2=CC=C(C=C2)Cl)O)CCCC(=O)C3=CC=C(C=C3)F
+Hydrochlorothiazide,"Apo-Hydro, Aquazide H, BP Zide, Dichlotride, Hydrodiuril, HydroSaluric, Microzide, Esidrex, Oretic",Diuretic,"Hypertension, diuresis",Conditional Risk of TdP,C1NC2=CC(=C(C=C2S(=O)(=O)N1)S(=O)(=O)N)Cl
+Hydrocodone - ER,"Hysingla™ ER, Zohydro ER",Analgesic,"Pain, severe",Possible Risk of TdP,CN1CC[C@]23[C@@H]4[C@H]1CC5=C2C(=C(C=C5)OC)O[C@H]3C(=O)CC4
+Hydroquinidine (Dihydroquinidine)  (Only on Non US Market),Serecor,Antiarrhythmic,Arrhythmia,Known Risk of TdP,CC[C@H]1CN2CC[C@H]1C[C@@H]2[C@H](C3=C4C=C(C=CC4=NC=C3)OC)O
+Hydroxychloroquine,"Plaquenil, Quineprox","Antimalarial, Anti-inflammatory","Malaria, SLE, rheumatoid arthritis",Known Risk of TdP,CCN(CCCC(C)NC1=C2C=CC(=CC2=NC=C1)Cl)CCO
+Hydroxyzine,"Atarax, Vistaril, Aterax, Alamon, Durrax, Equipose, Masmoran, Orgatrax, Paxistil Quiess, Tran-Q, Tranquizine",Antihistamine,"Anxiety disorders, allergic reactions",Conditional Risk of TdP,C1CN(CCN1CCOCCO)C(C2=CC=CC=C2)C3=CC=C(C=C3)Cl
+Ibogaine  (Only on Non US Market),,Psychedelic,"Narcotic dependence, unproven efficacy",Known Risk of TdP,CC[C@H]1C[C@@H]2C[C@@H]3[C@H]1N(C2)CCC4=C3NC5=C4C=C(C=C5)OC
+Ibutilide,Corvert,Antiarrhythmic,Arrhythmia,Known Risk of TdP,CCCCCCCN(CC)CCCC(C1=CC=C(C=C1)NS(=O)(=O)C)O
+Iloperidone,"Fanapt, Fanapta, Zomaril","Antipsychotic, atypical",Schizophrenia,Possible Risk of TdP,CC(=O)C1=CC(=C(C=C1)OCCCN2CCC(CC2)C3=NOC4=C3C=CC(=C4)F)OC
+Imatinib,"Gleevec, Glivec",Anti-cancer,Cancer (Acute myeloid leukemia),Possible Risk of TdP,CC1=C(C=C(C=C1)NC(=O)C2=CC=C(C=C2)CN3CCN(CC3)C)NC4=NC=CC(=N4)C5=CN=CC=C5
+Imipramine (Melipramine),Tofranil,"Antidepressant, Tricyclic",Depression,Possible Risk of TdP,CN(C)CCCN1C2=CC=CC=C2CCC3=CC=CC=C31
+Indacaterol,"Arcapta Neohaler, Onbrez Breezhaler, Utibron",Bronchodilator,"Asthma, COPD",SRSpecial Risk,CCC1=C(C=C2CC(CC2=C1)NC[C@@H](C3=C4C=CC(=O)NC4=C(C=C3)O)O)CC
+Indapamide,"Lozol, Natrilix, Insig",Diuretic,"Hypertension, diuresis",Conditional Risk of TdP,CC1CC2=CC=CC=C2N1NC(=O)C3=CC(=C(C=C3)Cl)S(=O)(=O)N
+Inotuzumab ozogamicin,Besponsa,Anti-cancer,Cancer (acute lymphocytic leukemia},Possible Risk of TdP,C1=CC(=CC=C1C(=O)C(=O)O)O
+Isoflurane,Forane,General anesthesia,General anesthesia,Possible Risk of TdP,C(C(F)(F)F)(OC(F)F)Cl
+Isoproterenol (isoprenaline),"Medihaler-Iso, Isuprel",Bronchodilator,Allergic reaction,SRSpecial Risk,CC(C)NCC(O)C1=CC(O)=C(O)C=C1
+Isradipine,Dynacirc,Antihypertensive,Hypertension,Possible Risk of TdP,CC1=C(C(C(=C(N1)C)C(=O)OC(C)C)C2=CC=CC3=NON=C32)C(=O)OC
+Itraconazole,"Sporanox, Onmel",Antifungal,Fungal infection,Conditional Risk of TdP,CCC(C)N1C(=O)N(C=N1)C2=CC=C(C=C2)N3CCN(CC3)C4=CC=C(C=C4)OC[C@H]5CO[C@](O5)(CN6C=NC=N6)C7=C(C=C(C=C7)Cl)Cl
+Ivabradine,"Procoralan, Coralan, Corlentor, Coraxan, Ivabid, Bradia",Antianginal,Angina Pectoris (heart pain),Known Risk of TdP,CN(CCCN1CCC2=CC(=C(C=C2CC1=O)OC)OC)C[C@H]3CC4=CC(=C(C=C34)OC)OC
+Ivosidenib,Tibsovo,IDH1 inhibitor,Cancer (Acute myeloid leukemia),Possible Risk of TdP,C1CC(=O)N([C@@H]1C(=O)N(C2=CC(=CN=C2)F)[C@@H](C3=CC=CC=C3Cl)C(=O)NC4CC(C4)(F)F)C5=NC=CC(=C5)C#N
+Ketanserin  (Only on Non US Market),Sufrexal,Antihypertensive,Hypertension,Possible Risk of TdP,C1CN(CCC1C(=O)C2=CC=C(C=C2)F)CCN3C(=O)C4=CC=CC=C4NC3=O
+Ketoconazole,"Nizoral, Sebizole, Ketomed, Keton",Antifungal,Fungal infection,Conditional Risk of TdP,CC(=O)N1CCN(CC1)C2=CC=C(C=C2)OC[C@@H]3CO[C@@](O3)(CN4C=CN=C4)C5=C(C=C(C=C5)Cl)Cl
+Lacidipine  (Only on Non US Market),"Lacipil, Motens",Calcium channel blocker,Hypertension,Possible Risk of TdP,CCOC(=O)C1=C(NC(=C(C1C2=CC=CC=C2/C=C/C(=O)OC(C)(C)C)C(=O)OCC)C)C
+Lansoprazole,"Prevacid, Ogast",Proton Pump Inhibitor,"Gastric hyperacidity, GERD",Conditional Risk of TdP,CC1=C(C=CN=C1CS(=O)C2=NC3=CC=CC=C3N2)OCC(F)(F)F
+Lapatinib,"Tykerb, Tyverb",Anti-cancer,"Cancer (breast, metastatic)",Possible Risk of TdP,CS(=O)(=O)CCNCC1=CC=C(O1)C2=CC3=C(C=C2)N=CN=C3NC4=CC(=C(C=C4)OCC5=CC(=CC=C5)F)Cl
+Lefamulin,Xenleta,Antibiotic,Community acquired pneumonia,Possible Risk of TdP,C[C@H]1[C@@H]([C@](C[C@H]([C@]2([C@H]3[C@@]1(CCC2C)CCC3=O)C)OC(=O)CS[C@@H]4CC[C@H](C[C@H]4O)N)(C)C=C)O
+Lenvatinib,Lenvima,Anti-cancer,Cancer (Thyroid),Possible Risk of TdP,COC1=CC2=NC=CC(=C2C=C1C(=O)N)OC3=CC(=C(C=C3)NC(=O)NC4CC4)Cl
+Leuprolide (Leuprorelin),"Lupron, Eligard, Viadur, Carcinil, Enanton, Leuplin, Lucrin, Procren, Prostap",Anti-androgen,Cancer (prostate),Possible Risk of TdP,CCNC(=O)[C@@H]1CCCN1C(=O)[C@H](CCCN=C(N)N)NC(=O)[C@H](CC(C)C)NC(=O)[C@@H](CC(C)C)NC(=O)[C@H](CC2=CC=C(C=C2)O)NC(=O)[C@H](CO)NC(=O)[C@H](CC3=CNC4=CC=CC=C43)NC(=O)[C@H](CC5=CN=CN5)NC(=O)[C@@H]6CCC(=O)N6
+Levalbuterol (Levsalbutamol),"Xopenex, Levolin, Axazest",Bronchodilator,Asthma,SRSpecial Risk,CC(C)(C)NC[C@H](O)C1=CC(CO)=C(O)C=C1
+Levofloxacin,"Levaquin, Tavanic",Antibiotic,Bacterial infection,Known Risk of TdP,C[C@H]1COC2=C3N1C=C(C(=O)C3=CC(=C2N4CCN(CC4)C)F)C(=O)O.C[C@H]1COC2=C3N1C=C(C(=O)C3=CC(=C2N4CCN(CC4)C)F)C(=O)O.O
+Levoketoconazole,Recorlev,CYP450 inhibitor,Cushing's disease,Possible Risk of TdP,CC(=O)N1CCN(CC1)C1=CC=C(OC[C@@H]2CO[C@](CN3C=CN=C3)(O2)C2=CC=C(Cl)C=C2Cl)C=C1
+Levomepromazine (Methotrimeprazine)  (Only on Non US Market),"Nosinan, Nozinan, Levoprome",Antipsychotic,Schizophrenia,Known Risk of TdP,C[C@@H](CN1C2=CC=CC=C2SC3=C1C=C(C=C3)OC)CN(C)C
+Levomethadone (levamethadone)  (Only on Non US Market),,Opioid,Opiate withdrawal syndrome,Possible Risk of TdP,CCC(=O)C(C[C@@H](C)N(C)C)(C1=CC=CC=C1)C2=CC=CC=C2
+Levomethadyl acetate (Removed from US Market),Orlaam,Opioid agonist,Narcotic dependence,Known Risk of TdP,CC[C@@H](C(C[C@H](C)N(C)C)(C1=CC=CC=C1)C2=CC=CC=C2)OC(=O)C
+Levomethamphetamine (Levmetamfetamine),"Sinu Inhaler, Vapor Inhaler",Sympathomimetic,Sinus Congestion,SRSpecial Risk,C[C@H](CC1=CC=CC=C1)NC
+Levosulpiride  (Only on Non US Market),"Lesuride, Levazeo, Enliva",Antipsychotic,Schizophrenia,Known Risk of TdP,CCN1CCC[C@H]1CNC(=O)C2=C(C=CC(=C2)S(=O)(=O)N)OC
+Lisdexamfetamine,Vyvanse,CNS stimulant,ADHD,SRSpecial Risk,C[C@@H](CC1=CC=CC=C1)NC(=O)[C@H](CCCCN)N
+Lithium,"Eskalith, Lithobid",Antimanic,Bipolar disorder,Possible Risk of TdP,
+Lofexidine,Lucemyra,"Alpha-2-adrenergic agonist, central",Opioid withdrawal syndrome,Possible Risk of TdP,CC(C1=NCCN1)OC2=C(C=CC=C2Cl)Cl
+Loperamide,Imodium,Opioid agonist,Diarrhea,Conditional Risk of TdP,CN(C)C(=O)C(CCN1CCC(CC1)(C2=CC=C(C=C2)Cl)O)(C3=CC=CC=C3)C4=CC=CC=C4
+Lopinavir/Ritonavir,"Kaletra, Aluvia",Antiviral,HIV/AIDS,Possible Risk of TdP,CC1=C(C(=CC=C1)C)OCC(=O)N[C@@H](CC2=CC=CC=C2)[C@H](C[C@H](CC3=CC=CC=C3)NC(=O)[C@H](C(C)C)N4CCCNC4=O)O.CC(C)C1=NC(=CS1)CN(C)C(=O)N[C@@H](C(C)C)C(=O)N[C@@H](CC2=CC=CC=C2)C[C@@H]([C@H](CC3=CC=CC=C3)NC(=O)OCC4=CN=CS4)O
+Lumateperone,Caplyta,"Antipsychotic, atypical",Schizophrenia,Possible Risk of TdP,CN1CCN2[C@H]3CCN(C[C@H]3C4=C2C1=CC=C4)CCCC(=O)C5=CC=C(C=C5)F
+Lurasidone,Latuda,"Antipsychotic, atypical","Schizophrenia, biopolar disorder and others",Possible Risk of TdP,[H][C@@]12[C@H]3CC[C@H](C3)[C@]1([H])C(=O)N(C[C@@H]1CCCC[C@H]1CN1CCN(CC1)C1=NSC3=CC=CC=C13)C2=O
+Macimorelin,Macrilen,Ghrelin receptor agonist,Diagnostic adjunct,Possible Risk of TdP,CC(C)(C(=O)N[C@H](CC1=CNC2=CC=CC=C21)C(=O)N[C@H](CC3=CNC4=CC=CC=C43)NC=O)N
+Maprotiline,Ludiomil,"Anti-depressant, Tetracyclic",Depression,Possible Risk of TdP,CNCCCC12CCC(C3=CC=CC=C31)C4=CC=CC=C24
+Mavorixafor,Xolremdi,CXC chemokine receptor 4 antagonist,WHIM syndrome,Possible Risk of TdP,C1C[C@@H](C2=C(C1)C=CC=N2)N(CCCCN)CC3=NC4=CC=CC=C4N3
+Meglumine antimoniate  (Only on Non US Market),Glucantime,Antiparasitic,Leishmaniasis,Known Risk of TdP,O[Sb](=O)=O.CNC[C@H](O)[C@@H](O)[C@H](O)[C@H](O)CO
+Melperone  (Only on Non US Market),"Bunil, Buronil, Eunerpan","Antipsychotic, atypical",Schizophrenia,Possible Risk of TdP,CC1CCN(CC1)CCCC(=O)C2=CC=C(C=C2)F
+Mesoridazine (Removed from US Market),Serentil,Antipsychotic,Schizophrenia,Known Risk of TdP,CN1CCCCC1CCN2C3=CC=CC=C3SC4=C2C=C(C=C4)S(=O)C
+Metaproterenol (Orciprenaline),"Metaprel, Alupent",Bronchodilator,Asthma,SRSpecial Risk,CC(C)NCC(C1=CC(=CC(=C1)O)O)O
+Methadone,"Dolophine, Symoron, Amidone, Methadose, Physeptone, Heptadon",Opioid agonist,"Narcotic dependence, pain",Known Risk of TdP,CCC(=O)C(CC(C)N(C)C)(C1=CC=CC=C1)C2=CC=CC=C2
+Methamphetamine (Metamfetamine),"Desoxyn, Pervitin, Anadrex, Methedrine, Syndrox",CNS stimulant,"Obesity, ADHD",SRSpecial Risk,C[C@@H](CC1=CC=CC=C1)NC
+Methylphenidate,"Ritalin, Concerta, Focalin, Daytrana, Methylin, Metadate CD",CNS stimulant,ADHD,SRSpecial Risk,COC(=O)C(C1CCCCN1)C2=CC=CC=C2
+Metoclopramide,"Reglan, Gimoti, Afipran, Maxolon, Cerucal, Clopamon, Clopra, Maxeran, Maxolon, Metozolv, Plasil, Pramin, Primperan, Perinorm",Antiemetic,"Nausea, vomiting",Conditional Risk of TdP,CCN(CC)CCNC(=O)C1=CC(=C(C=C1OC)N)Cl
+Metolazone,"Zytanix, Zaroxolyn, Mykrox",Diuretic,"Hypertension, diuresis",Conditional Risk of TdP,CC1NC2=CC(=C(C=C2C(=O)N1C3=CC=CC=C3C)S(=O)(=O)N)Cl
+Metronidazole,"Flagyl, Helidac",Antibiotic,"Trichomoniasis, amebiasis, bacterial infection",Conditional Risk of TdP,CC1=NC=C(N1CCO)[N+](=O)[O-]
+Mianserin  (Only on Non US Market),Tolvon,Anti-depressant,Depression,Possible Risk of TdP,CN1CCN2C(C1)C3=CC=CC=C3CC4=CC=CC=C42
+Midodrine,"ProAmatine, Amatine, Gutron",Vasoconstrictor,Hypotension,SRSpecial Risk,COC1=CC(=C(C=C1)OC)C(CNC(=O)CN)O
+Midostaurin,Rydapt,Anti-cancer,Cancer (Acute myeloid leukemia),Possible Risk of TdP,C[C@@]12[C@@H]([C@@H](C[C@@H](O1)N3C4=CC=CC=C4C5=C6C(=C7C8=CC=CC=C8N2C7=C53)CNC6=O)N(C)C(=O)C9=CC=CC=C9)OC
+Mifepristone,"Korlym, Mifeprex",Progesterone antagonist,Pregnancy termination,Possible Risk of TdP,CC#C[C@@]1(CC[C@@H]2[C@@]1(C[C@@H](C3=C4CCC(=O)C=C4CC[C@@H]23)C5=CC=C(C=C5)N(C)C)C)O
+Mirabegron,Myrbetriq,Beta3 adrenergic antagonist,Bladder spasm,Possible Risk of TdP,C1=CC=C(C=C1)[C@H](CNCCC2=CC=C(C=C2)NC(=O)CC3=CSC(=N3)N)O
+Mirtazapine,Remeron,"Antidepressant, Tetracyclic",Depression,Possible Risk of TdP,CN1CCN2C(C1)C3=CC=CC=C3CC4=C2N=CC=C4
+Mobocertinib,Exkivity,Tyrosine kinase inhibitor,Cancer (Lung),Known Risk of TdP,CC(C)OC(=O)C1=CN=C(N=C1C2=CN(C3=CC=CC=C32)C)NC4=C(C=C(C(=C4)NC(=O)C=C)N(C)CCN(C)C)OC
+Moclobemide  (Only on Non US Market),"Amira, Aurorix, Clobemix, Depnil, Manerix",Antidepressant,Depression,Possible Risk of TdP,C1COCCN1CCNC(=O)C2=CC=C(C=C2)Cl
+Motixafortide,Aphexda,Hematopoietic stem cell mobilizer,Multiple Myeloma,Possible Risk of TdP,C1C[C@H]2C(=O)N[C@H](C(=O)N[C@H](C(=O)N[C@H](C(=O)N[C@@H](CSSC[C@@H](C(=O)N[C@H](C(=O)N[C@H](C(=O)N[C@H](C(=O)N[C@@H](C(=O)N2C1)CCCCN)CCCCN)CCCNC(=O)N)CC3=CC=C(C=C3)O)NC(=O)[C@H](CC4=CC5=CC=CC=C5C=C4)NC(=O)[C@H](CCCNC(=N)N)NC(=O)[C@H](CCCNC(=N)N)NC(=O)C6=CC=C(C=C6)F)C(=O)N[C@@H](CCCNC(=N)N)C(=O)N)CCCNC(=O)N)CCCNC(=N)N)CC7=CC=C(C=C7)O
+Moxifloxacin,"Avelox, Avalox, Avelon",Antibiotic,Bacterial infection,Known Risk of TdP,COC1=C2C(=CC(=C1N3C[C@@H]4CCCN[C@@H]4C3)F)C(=O)C(=CN2C5CC5)C(=O)O
+Necitumumab,Portrazza,anti-cancer,Cancer (Lung),Possible Risk of TdP,
+Nelfinavir,Viracept,Antiviral,Viral infection (HIV/AIDS),Conditional Risk of TdP,CC1=C(C=CC=C1O)C(=O)N[C@@H](CSC2=CC=CC=C2)[C@@H](CN3C[C@H]4CCCC[C@H]4C[C@H]3C(=O)NC(C)(C)C)O
+Nicardipine,Cardene,Antihypertensive,Hypertension,Possible Risk of TdP,CC1=C(C(C(=C(N1)C)C(=O)OCCN(C)CC2=CC=CC=C2)C3=CC(=CC=C3)[N+](=O)[O-])C(=O)OC
+Nifekalant  (Only on Non US Market),Shinbit,Antiarrhythmic,Arrhythmia,Known Risk of TdP,CN1C(=O)C=C(NCCN(CCO)CCCC2=CC=C(C=C2)[N+]([O-])=O)N(C)C1=O
+Nilotinib,Tasigna,Anti-cancer,Cancer (leukemia),Possible Risk of TdP,CC1=C(C=C(C=C1)C(=O)NC2=CC(=CC(=C2)C(F)(F)F)N3C=C(N=C3)C)NC4=NC=CC(=N4)C5=CN=CC=C5
+Norepinephrine,Levophed,"Vasconstrictor, Inotrope","Heart failure, shock (low blood pressure)",SRSpecial Risk,NC[C@H](O)C1=CC(O)=C(O)C=C1
+"Norfloxacin (Removed from US Market, Only on Non US Market)","Noroxin, Ambigram",Antibiotic,Bacterial infection,Possible Risk of TdP,CCN1C=C(C(=O)C2=CC(=C(C=C21)N3CCNCC3)F)C(=O)O
+Nortriptyline,"Pamelor, Sensoval, Aventyl, Norpress, Allegron, Noritren, Nortrilen","Antidepressant, Tricyclic",Depression,Possible Risk of TdP,CNCCC=C1C2=CC=CC=C2CCC3=CC=CC=C31
+Nusinersen,Spinraza,Antisense oligonucleotide,Spinal Muscular Atrophy,Possible Risk of TdP,C[NH+]1C2CCC1CC(C2)OC(=O)C(=CC3=CC=CC=C3)C4=CC=C(C=C4)N.[Cl-]
+Ofloxacin,Floxin,Antibiotic,Bacterial infection,Possible Risk of TdP,CC1COC2=C3N1C=C(C(=O)C3=CC(=C2N4CCN(CC4)C)F)C(=O)O
+Olanzapine,"Zyprexa, Zydis, Relprevv","Antipsychotic, atypical","Schizophrenia, bipolar disorder",Conditional Risk of TdP,CC1=CC2=C(S1)NC3=CC=CC=C3N=C2N4CCN(CC4)C
+Oliceridine,Olinvyk,analgesia,pain,Possible Risk of TdP,COC1=C(SC=C1)CNCC[C@]2(CCOC3(C2)CCCC3)C4=CC=CC=N4
+Olodaterol,Striverdi Respimat,Bronchodilator,Asthma,SRSpecial Risk,CC(C)(CC1=CC=C(C=C1)OC)NC[C@@H](C2=C3C(=CC(=C2)O)NC(=O)CO3)O
+Omeprazole,"Losec, Prilosec, Zegerid, Mopral",Proton Pump Inhibitor,"Gastric hyperacidity, GERD",Conditional Risk of TdP,CC1=CN=C(C(=C1OC)C)CS(=O)C2=NC3=C(N2)C=C(C=C3)OC
+Ondansetron,"Zofran, Anset, Ondemet, Zuplenz, Emetron, Ondavell, Emeset, Ondisolv, Setronax",Antiemetic,"Nausea, vomiting",Known Risk of TdP,CC1=NC=CN1CC2CCC3=C(C2=O)C4=CC=CC=C4N3C
+Opipramol  (Only on Non US Market),"Deprenil, Dinsidon, Ensidon, Insidon, Insomin, Inzeton, Nisidana, Opipram, Opramol, Oprimol, Pramolan, and Sympramol among others",Sigma receptor agonist,Depression,Possible Risk of TdP,C1CN(CCN1CCCN2C3=CC=CC=C3C=CC4=CC=CC=C42)CCO
+Osilodrostat,Isturisa,Aldosterone synthase inhibitor,Cushing's Disease,Possible Risk of TdP,C1CC2=CN=CN2[C@H]1C3=C(C=C(C=C3)C#N)F
+Osimertinib,Tagrisso,Anti-cancer,Cancer (EGFR pos. NSC Lung cancer),Known Risk of TdP,CN1C=C(C2=CC=CC=C21)C3=NC(=NC=C3)NC4=C(C=C(C(=C4)NC(=O)C=C)N(C)CCN(C)C)OC
+Oxaliplatin,Eloxatin,Anti-cancer,Cancer,Known Risk of TdP,C1CC[C@H]([C@@H](C1)N)N.C(=O)(C(=O)[O-])[O-].[Pt+2]
+Oxymetazoline,"Afrin, Otrivin, Vicks Sinex, Zicam",Decongestant,Allergic rhinitis,SRSpecial Risk,CC1=CC(=C(C(=C1CC2=NCCN2)C)O)C(C)(C)C
+Oxytocin,"Pitocin, Syntocinon",Oxytocic,Labor stimulation,Possible Risk of TdP,CC[C@H](C)[C@H]1C(=O)N[C@H](C(=O)N[C@H](C(=O)N[C@@H](CSSC[C@@H](C(=O)N[C@H](C(=O)N1)CC2=CC=C(C=C2)O)N)C(=O)N3CCC[C@H]3C(=O)N[C@@H](CC(C)C)C(=O)NCC(=O)N)CC(=O)N)CCC(=O)N
+Ozanimod,Zeposia,Immunomodulation,Multiple Sclerosis,Possible Risk of TdP,CC(C)OC1=C(C=C(C=C1)C2=NC(=NO2)C3=C4CC[C@@H](C4=CC=C3)NCCO)C#N
+Pacritinib,Vonjo,JAK inhibitor,"Cancer, myelofibrosis",Possible Risk of TdP,C1CCN(C1)CCOC2=C3COC/C=C/COCC4=CC(=CC=C4)C5=NC(=NC=C5)NC(=C3)C=C2
+Paliperidone,"Invega, Xepilon","Antipsychotic, atypical",Schizophrenia,Possible Risk of TdP,CC1=C(C(=O)N2CCCC(C2=N1)O)CCN3CCC(CC3)C4=NOC5=C4C=CC(=C5)F
+Palonosetron,Aloxi,Antiemetic,"Nausea, vomiting",Possible Risk of TdP,C1C[C@@H]2CN(C(=O)C3=CC=CC(=C23)C1)[C@@H]4CN5CCC4CC5
+Panobinostat,Farydak,Histone deacetylase inhibitor,"Cancer, Multiple myeloma",Possible Risk of TdP,CC1=C(C2=CC=CC=C2N1)CCNCC3=CC=C(C=C3)/C=C/C(=O)NO
+Pantoprazole,"Protonix, Inipomp, Eupantol",Proton Pump Inhibitor,"Gastric hyperacidity, GERD",Conditional Risk of TdP,COC1=C(C(=NC=C1)CS(=O)C2=NC3=C(N2)C=C(C=C3)OC(F)F)OC
+Papaverine HCl (Intra-coronary),"ParaTime SR, others","Vasodilator, Coronary",Diagnostic adjunct,Known Risk of TdP,COC1=C(C=C(C=C1)CC2=NC=CC3=CC(=C(C=C32)OC)OC)OC.Cl
+Paroxetine,"Paxil, Aropax, Pexeva, Seroxat, Sereupin, Seroxat, Deroxat","Antidepressant, SSRI",Depression,Conditional Risk of TdP,C1CNC[C@H]([C@@H]1C2=CC=C(C=C2)F)COC3=CC4=C(C=C3)OCO4
+Pasireotide,Signifor,Somatostatin analog,Cushing's Disease,Possible Risk of TdP,C1[C@H](CN2[C@@H]1C(=O)N[C@H](C(=O)N[C@@H](C(=O)N[C@H](C(=O)N[C@H](C(=O)N[C@H](C2=O)CC3=CC=CC=C3)CC4=CC=C(C=C4)OCC5=CC=CC=C5)CCCCN)CC6=CNC7=CC=CC=C76)C8=CC=CC=C8)OC(=O)NCCN
+Pazopanib,Votrient,Anti-cancer,"Cancer (renal cell, sarcoma)",Possible Risk of TdP,CN(C1=CC2=NN(C)C(C)=C2C=C1)C1=CC=NC(NC2=CC=C(C)C(=C2)S(N)(=O)=O)=N1
+Pentamidine,Pentam,Antifungal,Fungal infection (Pneumocystis pneumonia),Known Risk of TdP,C1=CC(=CC=C1C(=N)N)OCCCCCOC2=CC=C(C=C2)C(=N)N
+Perphenazine,"Trilafon,  Etrafon/Triavil, Decentan",Antipsychotic,Schizophrenia,Possible Risk of TdP,C1CN(CCN1CCCN2C3=CC=CC=C3SC4=C2C=C(C=C4)Cl)CCO
+Phendimetrazine,"Bontril, Adipost, Anorex, Plegine, Appecon, Melfiat, Obezine, Phendiet, Prelu-2, Statobex",,Obesity,SRSpecial Risk,C[C@H]1[C@@H](OCCN1C)C2=CC=CC=C2
+Phentermine,"Adipex P, Adiphene, Anoxine-AM, Ionamin, Duromine, Metermine, Miraprontv, Obephen, Obermine, Obestin-30, Phentremine, Phentrol, Phenterex, Phentromin, Pro-Fast SA, Redusa, Panbesy, Obenix, Oby-Trim, Teramine, Zantryl, Sinpet, Supremin, Suprenza, Umine, Weltmine",Appetite suppressant,Obesity,SRSpecial Risk,CC(C)(CC1=CC=CC=C1)N
+Phenylephrine,Neosynephrine,Vasoconstrictor,"Shock (low blood pressure), allergic rhinitis, asthma",SRSpecial Risk,CNC[C@@H](C1=CC(=CC=C1)O)O
+Phenylpropanolamine (Removed from US Market),"Acutrim, Dexatrim",Appetite suppressant,Obesity,SRSpecial Risk,C[C@@H]([C@@H](C1=CC=CC=C1)O)N
+Pilsicainide  (Only on Non US Market),Sunrythm,Anti-arrhythmic,Arrhythmia,Possible Risk of TdP,CC1=C(C(=CC=C1)C)NC(=O)CC23CCCN2CCC3
+Pimavanserin,Nuplazid,"Antipsychotic, atypical","Psychosis, Parkinson's Disease",Possible Risk of TdP,CC(C)COC1=CC=C(CNC(=O)N(CC2=CC=C(F)C=C2)C2CCN(C)CC2)C=C1
+Pimozide,Orap,Antipsychotic,"Psychosis, Tourette's Disorder",Known Risk of TdP,C1CN(CCC1N2C3=CC=CC=C3NC2=O)CCCC(C4=CC=C(C=C4)F)C5=CC=C(C=C5)F
+Pipamperone  (Only on Non US Market),"Dipiperon, Propitan, Dipiperal, Piperonil, Piperonyl",Antipsychotic,Schizophrenia,Possible Risk of TdP,C1CCN(CC1)C2(CCN(CC2)CCCC(=O)C3=CC=C(C=C3)F)C(=O)N
+Piperacillin/Tazobactam,"Tazosyn, Zosyn",Antibiotic,Bacterial infection,Conditional Risk of TdP,
+Pitolisant (Tiprolisant),Wakix,Histamine 3 antagonist/inverse agonist,Narcolepsy,Possible Risk of TdP,C1CCN(CC1)CCCOCCCC2=CC=C(C=C2)Cl
+Ponesimod,Ponvory,Sphingosine 1-phosphate receptor modulator,Multiple Sclerosis,Possible Risk of TdP,CCN(CC)CCOC(=O)C(C1=CC=CC=C1)(C2=CC3=C(CCCC3)C=C2)O
+Posaconazole,"Noxafil, Posamol",Antifungal,Fungal infection,Conditional Risk of TdP,CC[C@@H]([C@H](C)O)N1C(=O)N(C=N1)C2=CC=C(C=C2)N3CCN(CC3)C4=CC=C(C=C4)OC[C@H]5C[C@](OC5)(CN6C=NC=N6)C7=C(C=C(C=C7)F)F
+Pralsetinib,Gavreto,Tyrosine kinase inhibitor,cancer (medullary thyroid),Possible Risk of TdP,C1=CC(=CC=C1N2C=C(C(=O)C3=CC(=C(C=C32)Cl)F)C(=O)O)F
+Pretomanid,Dovprela,Antitubercular,"Tuberculosis, extensively drug resistant",Possible Risk of TdP,C1[C@@H](COC2=NC(=CN21)[N+](=O)[O-])OCC3=CC=C(C=C3)OC(F)(F)F
+Primaquine phosphate,"Jasoprim, Malirid, Neo-Quipenyl, Pimaquin, Pmq, Primachina, Primacin, Primaquina, Remaquin",Antimalarial,Malaria,Possible Risk of TdP,CC(CCCN)NC1=C2C(=CC(=C1)OC)C=CC=N2.OP(=O)(O)O.OP(=O)(O)O
+Probucol (Removed from US Market),Lorelco,Antilipemic,Hypercholesterolemia,Known Risk of TdP,CC(C)(C)C1=CC(=CC(=C1O)C(C)(C)C)SC(C)(C)SC2=CC(=C(C(=C2)C(C)(C)C)O)C(C)(C)C
+Procainamide,"Pronestyl, Procan",Antiarrhythmic,Arrhythmia,Known Risk of TdP,CCN(CC)CCNC(=O)C1=CC=C(C=C1)N
+Promethazine,Phenergan,Antipsychotic / Antiemetic,"Nausea, vomiting",Possible Risk of TdP,CC(CN1C2=CC=CC=C2SC3=CC=CC=C31)N(C)C
+Propafenone,"Rythmol SR, Rytmonorm",Sodium channel blocker,Arrhythmia,Conditional Risk of TdP,CCCNCC(COC1=CC=CC=C1C(=O)CCC2=CC=CC=C2)O
+Propofol,"Diprivan, Propoven","Anesthetic, general",Anesthesia,Known Risk of TdP,CC(C)C1=C(C(=CC=C1)C(C)C)O
+Prothipendyl  (Only on Non US Market),"Dominal, Largophren, Timoval, Timovan, Tumovan",Antipsychotic,Schizophrenia,Possible Risk of TdP,CN(C)CCCN1C2=CC=CC=C2SC3=C1N=CC=C3
+Pseudoephedrine,"PediaCare, Sudafed",Decongestant,"Allergic reaction, allergic rhinitis, asthma",SRSpecial Risk,C[C@@H]([C@H](C1=CC=CC=C1)O)NC
+Quetiapine,Seroquel,"Antipsychotic, atypical",Schizophrenia,Conditional Risk of TdP,C1CN(CCN1CCOCCO)C2=NC3=CC=CC=C3SC4=CC=CC=C42
+Quinidine,"Quinaglute, Duraquin, Quinact, Quinidex, Cin-Quin, Quinora",Antiarrhythmic,Arrhythmia,Known Risk of TdP,COC1=CC2=C(C=CN=C2C=C1)[C@@H]([C@H]3C[C@@H]4CCN3C[C@@H]4C=C)O
+Quinine sulfate,"Qualaquin, Hexaquine",Antimalarial,"Malaria, leg cramps",Conditional Risk of TdP,COC1=CC2=C(C=CN=C2C=C1)[C@H]([C@@H]3C[C@@H]4CCN3C[C@@H]4C=C)O.COC1=CC2=C(C=CN=C2C=C1)[C@H]([C@@H]3C[C@@H]4CCN3C[C@@H]4C=C)O.O.O.OS(=O)(=O)O
+Quizartinib,Vanflyta,Tyrosine kinase inhibitor,Acute myeloid leukemia,Known Risk of TdP,CC(C)(C)C1=CC(=NO1)NC(=O)NC2=CC=C(C=C2)C3=CN4C5=C(C=C(C=C5)OCCN6CCOCC6)SC4=N3
+Ranolazine,"Ranexa, Ranozex",Antianginal,Angina Pectoris (heart pain),Conditional Risk of TdP,CC1=C(C(=CC=C1)C)NC(=O)CN2CCN(CC2)CC(COC3=CC=CC=C3OC)O
+Relugolix,"Orgovyx, Relumina",GnRH antagonist,Cancer (prostate),Possible Risk of TdP,CN(C)CC1=C(SC2=C1C(=O)N(C(=O)N2CC3=C(C=CC=C3F)F)C4=NN=C(C=C4)OC)C5=CC=C(C=C5)NC(=O)NOC
+Remdesivir,Veklury,Antiviral,COVID-19,Possible Risk of TdP,CCC(CC)COC(=O)[C@H](C)N[P@](=O)(OC[C@@H]1[C@H]([C@H]([C@](O1)(C#N)C2=CC=C3N2N=CN=C3N)O)O)OC4=CC=CC=C4
+Remimazolam,Byfavo,Sedative,Sedation,Possible Risk of TdP,CC1=CN=C2N1C3=C(C=C(C=C3)Br)C(=N[C@H]2CCC(=O)OC)C4=CC=CC=N4
+Revumenib,Revuforj,Antineoplastic,Acute leukemia,Possible Risk of TdP,CCN(C(C)C)C(=O)C1=C(C=CC(=C1)F)OC2=CN=CN=C2N3CC4(C3)CCN(CC4)CC5CCC(CC5)NS(=O)(=O)CC
+Ribociclib,Kisqali,Anti-cancer,Cancer (breast),Possible Risk of TdP,CN(C)C(=O)C1=CC2=CN=C(N=C2N1C3CCCC3)NC4=NC=C(C=C4)N5CCNCC5
+Rilpivirine,"Edurant, Complera, Eviplera, Juluca",Antiviral,Viral infection (HIV/AIDS),Possible Risk of TdP,CC1=CC(=CC(=C1NC2=NC(=NC=C2)NC3=CC=C(C=C3)C#N)C)/C=C/C#N
+Risperidone,Risperdal,"Antipsychotic, atypical",Schizophrenia,Conditional Risk of TdP,CC1=C(C(=O)N2CCCCC2=N1)CCN3CCC(CC3)C4=NOC5=C4C=CC(=C5)F
+Ritodrine (Removed from US Market),Yutopar,Muscle relaxant,Premature labor,SRSpecial Risk,C[C@H]([C@H](C1=CC=C(C=C1)O)O)NCCC2=CC=C(C=C2)O
+Rivastigmine,Exelon,Cholinesterase inhibitor,Dementia (Alzheimers disease),Possible Risk of TdP,CCN(C)C(=O)OC1=CC=CC(=C1)[C@H](C)N(C)C
+Romidepsin,Istodax,Histone deacetylase inhibitor,Cancer (lymphoma),Possible Risk of TdP,C/C=C1/C(=O)N[C@H](C(=O)O[C@H]2CC(=O)N[C@@H](C(=O)N[C@H](CSSCC/C=C2)C(=O)N1)C(C)C)C(C)C
+Roxithromycin  (Only on Non US Market),"Rulide, Xthrocin, Roxl-150, Roxo, Surlid, Rulide, Biaxsig, Roxar, Roximycinv, Roxomycin, Rulid, Tirabicin, Coroxin",Antibiotic,Bacterial infection,Known Risk of TdP,CC[C@@H]1[C@@]([C@@H]([C@H](/C(=N/OCOCCOC)/[C@@H](C[C@@]([C@@H]([C@H]([C@@H]([C@H](C(=O)O1)C)O[C@H]2C[C@@]([C@H]([C@@H](O2)C)O)(C)OC)C)O[C@H]3[C@@H]([C@H](C[C@H](O3)C)N(C)C)O)(C)O)C)C)O)(C)O
+Rucaparib,Rubraca,PARP inhibitor,Cancer,Possible Risk of TdP,CNCC1=CC=C(C=C1)C2=C3CCNC(=O)C4=C3C(=CC(=C4)F)N2
+Salmeterol,"Serevent, Advair",Bronchodilator,Asthma,SRSpecial Risk,C1=CC=C(C=C1)CCCCOCCCCCCNCC(C2=CC(=C(C=C2)O)CO)O
+Saquinavir (with ritonavir),Invirase,Antiviral,Viral infection (HIV/AIDS),Possible Risk of TdP,CC(C)(C)NC(=O)[C@@H]1C[C@@H]2CCCC[C@@H]2CN1C[C@H]([C@H](CC3=CC=CC=C3)NC(=O)[C@H](CC(=O)N)NC(=O)C4=NC5=CC=CC=C5C=C4)O
+Selpercatinib,Retevmo,Kinase inhibitor,Lung cancer,Possible Risk of TdP,CC(C)(COC1=CN2C(=C(C=N2)C#N)C(=C1)C3=CN=C(C=C3)N4CC5CC(C4)N5CC6=CN=C(C=C6)OC)O
+Serdexmethylphenidate,Azstarys,Psycho stimulant,ADHD,SRSpecial Risk,[H][C@@]1(CCCCN1C(=O)OC[N+]1=CC=CC(=C1)C(=O)N[C@@H](CO)C([O-])=O)[C@H](C(=O)OC)C1=CC=CC=C1
+Sertindole  (Only on Non US Market),"Serdolect, Serlect","Antipsychotic, atypical","Schizophrenia, anxiety",Known Risk of TdP,C1CN(CCC1C2=CN(C3=C2C=C(C=C3)Cl)C4=CC=C(C=C4)F)CCN5CCNC5=O
+Sertraline,"Zoloft, Lustral","Antidepressant, SSRI",Depression,Conditional Risk of TdP,CN[C@H]1CC[C@H](C2=CC=CC=C12)C3=CC(=C(C=C3)Cl)Cl
+Sevoflurane,"Ultane, Sojourn","Anesthetic, general",Anesthesia,Known Risk of TdP,C(OC(C(F)(F)F)C(F)(F)F)F
+Sibutramine (Removed from US Market),Meridia,Appetite suppressant,Obesity,SRSpecial Risk,CC(C)CC(C1(CCC1)C2=CC=C(C=C2)Cl)N(C)C
+Siponimod,Mayzent,,Multiple Sclerosis,Possible Risk of TdP,CCC1=C(C=CC(=C1)/C(=N/OCC2=CC(=C(C=C2)C3CCCCC3)C(F)(F)F)/C)CN4CC(C4)C(=O)O
+Sitafloxacin  (Only on Non US Market),Gracevit,Antibiotic,Infections,Possible Risk of TdP,C1CC12CN(C[C@H]2N)C3=C(C=C4C(=C3Cl)N(C=C(C4=O)C(=O)O)[C@@H]5C[C@@H]5F)F
+Solifenacin,Vesicare,Muscle relaxant,Bladder spasm,Conditional Risk of TdP,C1CN2CCC1[C@H](C2)OC(=O)N3CCC4=CC=CC=C4[C@@H]3C5=CC=CC=C5
+Sorafenib,Nexavar,Anti-cancer,"Cancer (liver, renal cell, metastatic thyroid)",Possible Risk of TdP,CNC(=O)C1=NC=CC(=C1)OC2=CC=C(C=C2)NC(=O)NC3=CC(=C(C=C3)Cl)C(F)(F)F
+Sotalol,"Betapace, Sotalex, Sotacor, Sotalol-AF",Antiarrhythmic,Arrhythmia,Known Risk of TdP,CC(C)NCC(C1=CC=C(C=C1)NS(=O)(=O)C)O
+Sparfloxacin (Removed from US Market),Zagam,Antibiotic,Bacterial infection,Known Risk of TdP,C[C@@H]1CN(C[C@@H](N1)C)C2=C(C(=C3C(=C2F)N(C=C(C3=O)C(=O)O)C4CC4)N)F
+Sulfamethoxazole and Trimethoprim,"Septra, Bactrim, Sulfatrim, Biseptol, Co-trimoxazole, Cotrim, Septrin, Trisul",Antibiotic,Bacterial infection,SRSpecial Risk,
+Sulpiride  (Only on Non US Market),"Dogmatil, Dolmatil, Eglonyl, Espiride, Modal, Sulpor","Antipsychotic, atypical",Schizophrenia,Known Risk of TdP,CCN1CCCC1CNC(=O)C2=C(C=CC(=C2)S(=O)(=O)N)OC
+Sultopride  (Only on Non US Market),"Barnetil, Barnotil, Topral","Antipsychotic, atypical",Schizophrenia,Known Risk of TdP,CCN1CCCC1CNC(=O)C2=C(C=CC(=C2)S(=O)(=O)CC)OC
+Sunitinib,Sutent,Anti-cancer,"Cancer (GIST, renal cell, pNET)",Possible Risk of TdP,CCN(CC)CCNC(=O)C1=C(NC(=C1C)/C=C2/C3=C(C=CC(=C3)F)NC2=O)C
+Tacrolimus,"Prograf, Prograf, Advagraf, Protopic",Immunosuppressant,Immune suppression,Possible Risk of TdP,C[C@@H]1C[C@@H]([C@@H]2[C@H](C[C@H]([C@@](O2)(C(=O)C(=O)N3CCCC[C@H]3C(=O)O[C@@H]([C@@H]([C@H](CC(=O)[C@@H](/C=C(/C1)C)CC=C)O)C)/C(=C/[C@@H]4CC[C@H]([C@@H](C4)OC)O)/C)O)C)OC)OC.O
+Tamoxifen,"Nolvadex, Istubal",Anti-cancer,Cancer (breast),Possible Risk of TdP,CC/C(=C(C1=CC=CC=C1)/C2=CC=C(C=C2)OCCN(C)C)/C3=CC=CC=C3
+Tazemetostat,Tazverik,Anti-cancer,Epithelioid sarcoma,Possible Risk of TdP,CCN(C1CCOCC1)C2=CC(=CC(=C2C)C(=O)NCC3=C(C=C(NC3=O)C)C)C4=CC=C(C=C4)CN5CCOCC5
+Tebentafusp,Kimmtrak,CD3 T cell engager,"Melanoma, eye",Possible Risk of TdP,CCN(C(C)COC1=CC(=CC(=C1)C)C)C(=O)OCCN2CCCCC2C
+"Telaprevir (Removed from US Market, Only on Non US Market)","Incivo, Incivek",Antiviral,Viral infection (hepatitis C),Conditional Risk of TdP,CCC[C@@H](C(=O)C(=O)NC1CC1)NC(=O)[C@@H]2[C@H]3CCC[C@H]3CN2C(=O)[C@H](C(C)(C)C)NC(=O)[C@H](C4CCCCC4)NC(=O)C5=NC=CN=C5
+Telavancin,Vibativ,Antibiotic,Bacterial infection,Possible Risk of TdP,CCCCCCCCCCNCCN[C@@]1(C)C[C@H](O[C@@H]2[C@@H](O)[C@H](O)[C@@H](CO)O[C@H]2OC2=C3OC4=CC=C(C=C4Cl)[C@@H](O)[C@@H](NC(=O)[C@@H](CC(C)C)NC)C(=O)N[C@@H](CC(N)=O)C(=O)N[C@@H]4C(C=C2OC2=C(Cl)C=C(C=C2)[C@@H](O)[C@@H]2NC(=O)[C@H](NC4=O)C4=CC(=C(O)C=C4)C4=C(O)C(CNCP(O)(O)=O)=C(O)C=C4[C@H](NC2=O)C(O)=O)=C3)O[C@@H](C)[C@H]1O
+Telithromycin,Ketek,Antibiotic,Bacterial infection,Possible Risk of TdP,CC[C@@H]1[C@@]2([C@@H]([C@H](C(=O)[C@@H](C[C@@]([C@@H]([C@H](C(=O)[C@H](C(=O)O1)C)C)O[C@H]3[C@@H]([C@H](C[C@H](O3)C)N(C)C)O)(C)OC)C)C)N(C(=O)O2)CCCCN4C=C(N=C4)C5=CN=CC=C5)C
+Terbutaline,"Brethine, Bricanyl, Brethaire, Terbulin",Bronchodilator,"Asthma, premature labor",SRSpecial Risk,CC(C)(C)NCC(C1=CC(=CC(=C1)O)O)O
+Terfenadine (Removed from US Market),Seldane,Antihistamine,Allergic rhinitis,Known Risk of TdP,CC(C)(C)C1=CC=C(C=C1)C(CCCN2CCC(CC2)C(C3=CC=CC=C3)(C4=CC=CC=C4)O)O
+Terlipressin,"Teripress, Glypressin, Terlipin, Remestyp, Tresil, Teriss",Vasoconstrictor,Septic shock,Known Risk of TdP,C1C[C@H](N(C1)C(=O)[C@@H]2CSSC[C@@H](C(=O)N[C@H](C(=O)N[C@H](C(=O)N[C@H](C(=O)N[C@H](C(=O)N2)CC(=O)N)CCC(=O)N)CC3=CC=CC=C3)CC4=CC=C(C=C4)O)NC(=O)CNC(=O)CNC(=O)CN)C(=O)N[C@@H](CCCCN)C(=O)NCC(=O)N
+Terodiline  (Only on Non US Market),"Micturin, Mictrol",Muscle relaxant,Bladder spasm,Known Risk of TdP,CC(CC(C1=CC=CC=C1)C1=CC=CC=C1)NC(C)(C)C
+Tetrabenazine,"Nitoman, Xenazine",Vesicular Monoamine Transporter 2 Inhibitor,Chorea (Huntington's disease),Possible Risk of TdP,CC(C)CC1CN2CCC3=CC(=C(C=C3C2CC1=O)OC)OC
+Thioridazine,"Mellaril, Novoridazine, Thioril",Antipsychotic,Schizophrenia,Known Risk of TdP,CN1CCCCC1CCN2C3=CC=CC=C3SC4=C2C=C(C=C4)SC
+Tiapride  (Only on Non US Market),"Tiapridal, Italprid, Sereprile, Tialaread, Tiaryl, Tiaprim, Tiaprizal, Sereprid, Tiapridex","Selective D2, D3 dopamine antagonist","Alcoholism, withdrawal",Possible Risk of TdP,CCN(CC)CCNC(=O)C1=C(C=CC(=C1)S(=O)(=O)C)OC
+Tipiracil/Trifluridine,Lonsurf,Anti-cancer,Cancer (Metastatic colorectal),Possible Risk of TdP,
+Tizanidine,"Zanaflex, Sirdalud",Muscle relaxant,Muscle spasticity,Possible Risk of TdP,C1CN=C(N1)NC2=C(C=CC3=NSN=C32)Cl
+Tolterodine,"Detrol, Detrusitol",Muscle relaxant,Bladder spasm,Possible Risk of TdP,CC1=CC(=C(C=C1)O)[C@H](CCN(C(C)C)C(C)C)C2=CC=CC=C2
+Toremifene,Fareston,Estrogen agonist/antagonist,"Cancer (breast, metastatic)",Possible Risk of TdP,CN(C)CCOC1=CC=C(C=C1)/C(=C(/CCCl)C2=CC=CC=C2)/C3=CC=CC=C3
+Torsemide (Torasemide),"Demadex, Diuver, Examide",Diuretic,"Hypertension, diuresis",Conditional Risk of TdP,CC1=CC(=CC=C1)NC2=C(C=NC=C2)S(=O)(=O)NC(=O)NC(C)C
+Tramadol,"Crispin, Ralivia ER, Ralivia Flashtab, Tramadolum, Tramal, Tramodol, Tridural, Ultram, Ultram ER, Zydol, Ixprim, Zaldiar, Topalgic",Analgesic,Pain,Possible Risk of TdP,CN(C)C[C@H]1CCCC[C@@]1(C2=CC(=CC=C2)OC)O
+Trazodone,"Desyrel, Oleptro, Beneficat, Deprax, Desirel, Molipaxin, Thombran, Trazorel, Trialodine, Trittico, Mesyrel","Antidepressant, SARI","Depression, insomnia",Conditional Risk of TdP,C1CN(CCN1CCCN2C(=O)N3C=CC=CC3=N2)C4=CC(=CC=C4)Cl
+Triclabendazole,Egaten,Antihelmintics,Fascioliasis,Possible Risk of TdP,CSC1=NC2=CC(=C(C=C2N1)Cl)OC3=C(C(=CC=C3)Cl)Cl
+Trimipramine,"Surmontil, Rhotrimine, Stangyl","Antidepressant, Tricyclic",Depression,Possible Risk of TdP,CC(CN1C2=CC=CC=C2CCC3=CC=CC=C31)CN(C)C
+Tropisetron  (Only on Non US Market),"Navoban, Setrovel",Antiemetic,"Nausea, vomiting",Possible Risk of TdP,CN1[C@@H]2CC[C@H]1CC(C2)OC(=O)C3=CNC4=CC=CC=C43
+Valbenazine,Ingrezza,Vesicular monamine transporter 2 inhibitor,Tardive Dyskinesia,Possible Risk of TdP,CC(C)C[C@@H]1CN2CCC3=CC(=C(C=C3[C@H]2C[C@H]1OC(=O)[C@H](C(C)C)N)OC)OC
+Vandetanib,Caprelsa,Anti-cancer,Cancer (thyroid),Known Risk of TdP,CN1CCC(CC1)COC2=C(C=C3C(=C2)N=CN=C3NC4=C(C=C(C=C4)Br)F)OC
+Vardenafil,Levitra,Phosphodiesterase 5 inhibitor,Erectile dysfunction,Possible Risk of TdP,CCCC1=NC(=C2N1N=C(NC2=O)C3=C(C=CC(=C3)S(=O)(=O)N4CCN(CC4)CC)OCC)C
+Vemurafenib,Zelboraf,Anti-cancer,Cancer (melanoma),Possible Risk of TdP,CCCS(=O)(=O)NC1=C(C(=C(C=C1)F)C(=O)C2=CNC3=C2C=C(C=N3)C4=CC=C(C=C4)Cl)F
+Venlafaxine,"Effexor, Efexor","Antidepressant, SNRI",Depression,Possible Risk of TdP,CN(C)CC(C1=CC=C(C=C1)OC)C2(CCCCC2)O
+Vernakalant  (Only on Non US Market),"Brinavess, Kynapid",Antiarrhythmic agent,Atrial Fibrillation,Possible Risk of TdP,COC1=C(OC)C=C(CCO[C@@H]2CCCC[C@H]2N2CC[C@@H](O)C2)C=C1
+Vilanterol/fluticasone furoate,Breo Ellipta,Bronchodilator,Asthma,SRSpecial Risk,
+Voclosporin,Lupkynis,Immunosupressant,Lupus nephritis,Possible Risk of TdP,CC[C@H]1C(=O)N(CC(=O)N([C@H](C(=O)N[C@H](C(=O)N([C@H](C(=O)N[C@H](C(=O)N[C@@H](C(=O)N([C@H](C(=O)N([C@H](C(=O)N([C@H](C(=O)N([C@H](C(=O)N1)[C@@H]([C@H](C)C/C=C/C=C)O)C)C(C)C)C)CC(C)C)C)CC(C)C)C)C)C)CC(C)C)C)C(C)C)CC(C)C)C)C
+Voriconazole,VFend,Antifungal,Fungal infection,Conditional Risk of TdP,C[C@@H](C1=NC=NC=C1F)[C@](CN2C=NC=N2)(C3=C(C=C(C=C3)F)F)O
+Vorinostat,Zolinza,Histone deacetylase inhibitor,Cancer (lymphoma),Possible Risk of TdP,C1=CC=C(C=C1)NC(=O)CCCCCCC(=O)NO
+Xylometazoline (Xylomethazoline),"Sinosil, Aqua Maris",Sympathomimetic,Nasal Congestion,SRSpecial Risk,CC1=CC(=CC(=C1CC2=NCCN2)C)C(C)(C)C
+Ziprasidone,"Geodon, Zeldox","Antipsychotic, atypical",Schizophrenia,Conditional Risk of TdP,C1CN(CCN1CCC2=C(C=C3C(=C2)CC(=O)N3)Cl)C4=NSC5=CC=CC=C54
+Zotepine  (Only on Non US Market),"Losizopilon, Lodopin, Setous, Zoleptil","Antipsychotic, atypical",Schizophrenia,Possible Risk of TdP,CN(C)CCOC1=CC2=CC=CC=C2SC3=C1C=C(C=C3)Cl
+Zuclopenthixol (Zuclopentixol)  (Only on Non US Market),"Cisordinol, Clopixol, Acuphase",Antipsychotic,Psychosis,Possible Risk of TdP,C1CN(CCN1CC/C=C2/C3=CC=CC=C3SC4=C2C=C(C=C4)Cl)CCO

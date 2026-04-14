@@ -1,0 +1,21 @@
+# 靶点配置
+# 心脏毒性相关的核心靶点
+
+targets:
+  - name: hERG
+    chembl_id: CHEMBL240
+    priority: 1
+    description: "Potassium voltage-gated channel subfamily H member 2"
+    uniprot_id: Q14721
+
+  - name: Nav1.5
+    chembl_id: CHEMBL1971
+    priority: 2
+    description: "Sodium channel protein type 5 subunit alpha"
+    uniprot_id: Q14524
+
+  - name: Cav1.2
+    chembl_id: CHEMBL1940
+    priority: 3
+    description: "Voltage-dependent L-type calcium channel subunit alpha-1C"
+    uniprot_id: Q13936

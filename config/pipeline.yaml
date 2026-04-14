@@ -1,0 +1,95 @@
+# Pipeline配置
+
+pipeline:
+  # 版本信息
+  version: "1.0"
+  name: "Cardiotox Dataset Augmentation"
+
+  # 数据路径
+  data:
+    input:
+      diqta: "data/input/diqta.csv"
+      crediblemeds: "data/input/crediblemeds.csv"
+
+    output:
+      evidence_bundles: "data/output/evidence_bundles.jsonl"
+      discarded: "data/output/discarded.jsonl"
+      checkpoint: "data/output/checkpoint.json"
+
+    cache:
+      directory: "data/cache"
+
+    raw:
+      similarity: "data/raw/similarity"
+      physchem: "data/raw/physchem"
+      bioactivity: "data/raw/bioactivity"
+      clinical: "data/raw/clinical"
+      literature: "data/raw/literature"
+
+  # 相似性检索配置
+  similarity:
+    threshold: 0.8
+    max_results: 100
+    # Morgan指纹参数
+    radius: 2
+    nBits: 2048
+
+  # 理化性质配置
+  physchem:
+    # pKa计算
+    pka:
+      enabled: true
+      tool: "pkasolver"
+
+    # logD计算
+    logd:
+      ph: 7.4
+
+  # 靶点配置
+  targets:
+    enabled:
+      - hERG
+      - Nav1.5
+      - Cav1.2
+
+  # 文献检索配置
+  literature:
+    max_pubmed_articles: 30
+    # 是否过滤综述文章
+    filter_reviews: false
+    # 是否要求分子名称必须出现在摘要中
+    require_molecule_mention: true
+
+  # ClinicalTrials配置
+  clinicaltrials:
+    max_results: 30
+    # 搜索与QT相关的试验
+    qt_only: true
+
+  # API速率限制
+  api:
+    chembl:
+      rate_limit: 0.5  # 秒
+      timeout: 30
+    pubmed:
+      rate_limit: 0.5
+      timeout: 30
+    clinicaltrials:
+      rate_limit: 0.5
+      timeout: 30
+
+  # 缓存配置
+  cache:
+    ttl_hours: 24
+    enabled: true
+
+  # 日志配置
+  logging:
+    level: "INFO"
+    format: "{time:YYYY-MM-DD HH:mm:ss} | {level} | {name}:{function}:{line} - {message}"
+    file: "logs/pipeline.log"
+
+  # 断点配置
+  checkpoint:
+    enabled: true
+    interval: 10  # 每处理N个分子保存一次
