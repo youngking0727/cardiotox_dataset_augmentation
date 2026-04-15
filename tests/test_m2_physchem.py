@@ -39,7 +39,9 @@ class TestPhysChemCalculator:
             basic_pka=SourceInfo(value=9.5, source="pkasolver"),
             acidic_pka=None,
             ro5_violations=SourceInfo(value=0, source="chembl"),
-            qed=SourceInfo(value=0.75, source="rdkit")
+            qed=SourceInfo(value=0.75, source="rdkit"),
+            rdkit_descriptors={},
+            engineered_features={},
         )
 
         assert props.mw.value == 450.5

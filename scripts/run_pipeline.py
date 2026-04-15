@@ -3,10 +3,11 @@
 import argparse
 import json
 import logging
+import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Set
+from typing import List, Dict, Any, Optional, Set, Tuple
 
 import yaml
 from tqdm import tqdm
@@ -16,7 +17,7 @@ from loguru import logger
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from utils.chembl_client import ChEMBLClient
-from utils.pubmed_client import PubMedClient
+from utils.pubmed_client import PubMedClient, apply_ncbi_settings_from_config
 from utils.clinicaltrials_client import ClinicalTrialsClient
 from utils.cache import get_global_cache
 
@@ -45,12 +46,26 @@ def load_config(config_file: str = "config/pipeline.yaml") -> Dict[str, Any]:
     """加载配置文件"""
     config_path = Path(__file__).parent.parent / config_file
     with open(config_path, 'r') as f:
-        return yaml.safe_load(f)
+        data = yaml.safe_load(f) or {}
+    # pipeline.yaml 将选项放在顶层 pipeline: 下；扁平文件则直接使用
+    return data.get("pipeline", data)
 
 
 def load_diqta_data(diqta_file: str) -> List[Dict[str, Any]]:
-    """加载DIQTA数据"""
+    """加载 DIQTA 表（Excel/CSV），列名兼容常见导出。"""
     import pandas as pd
+
+    def cell(row: Any, *keys: str) -> str:
+        for k in keys:
+            if k not in row.index:
+                continue
+            v = row[k]
+            if pd.isna(v):
+                continue
+            s = str(v).strip()
+            if s:
+                return s
+        return ""
 
     diqta_path = Path(__file__).parent.parent / diqta_file
     if not diqta_path.exists():
@@ -58,25 +73,126 @@ def load_diqta_data(diqta_file: str) -> List[Dict[str, Any]]:
         return []
 
     try:
-        # 尝试读取Excel文件
-        df = pd.read_excel(diqta_path)
+        suf = diqta_path.suffix.lower()
+        if suf == ".csv":
+            df = pd.read_csv(diqta_path)
+        elif suf == ".tsv":
+            df = pd.read_csv(diqta_path, sep="\t")
+        else:
+            df = pd.read_excel(diqta_path)
     except Exception as e:
         logger.warning(f"读取DIQTA文件失败: {e}")
         return []
 
-    # 转换为字典列表
     records = []
     for _, row in df.iterrows():
-        record = {
-            "smiles": row.get("SMILES", ""),
-            "chembl_id": row.get("ChEMBL_ID", ""),
-            "label": row.get("Label", ""),
-            "name": row.get("Name", "")
+        smiles = cell(row, "NEW SMILES", "SMILES", "smiles")
+        chembl_id = cell(row, "ChEMBL_ID", "CHEMBL_ID", "chembl_id")
+        name = cell(row, "name", "Name")
+        label_raw = row.get("label", row.get("Label", ""))
+        if pd.isna(label_raw):
+            label = ""
+        else:
+            label = str(label_raw).strip()
+
+        if not smiles:
+            continue
+
+        rec: Dict[str, Any] = {
+            "smiles": smiles,
+            "chembl_id": chembl_id,
+            "label": label,
+            "name": name,
         }
-        if record["smiles"]:
-            records.append(record)
+        if "Pubchem_ID" in row.index and not pd.isna(row["Pubchem_ID"]):
+            rec["pubchem_id"] = row["Pubchem_ID"]
+
+        records.append(rec)
 
     return records
+
+
+def enrich_diqta_chembl_ids(
+    molecules: List[Dict[str, Any]], chembl_client: ChEMBLClient
+) -> List[Dict[str, Any]]:
+    """若行内无 ChEMBL ID，则根据 SMILES 在 ChEMBL 中解析（PubChem 表等）。"""
+    out: List[Dict[str, Any]] = []
+    for m in molecules:
+        cid = (m.get("chembl_id") or "").strip()
+        if cid.upper().startswith("CHEMBL"):
+            out.append(m)
+            continue
+        smiles = m.get("smiles")
+        if not smiles:
+            logger.warning(f"跳过无 SMILES 且无 ChEMBL ID 的记录: {m}")
+            continue
+        info, mol_ok = chembl_client.get_molecule_by_smiles(smiles)
+        if not mol_ok:
+            logger.warning(
+                f"molecule.json 请求失败，跳过解析 ChEMBL ID（SMILES 前80字符）: {str(smiles)[:80]}"
+            )
+            continue
+        if not info:
+            logger.warning(f"ChEMBL 未匹配 SMILES（未命中，前80字符）: {str(smiles)[:80]}...")
+            continue
+        mid = info.get("molecule_chembl_id")
+        if not mid:
+            logger.warning(f"ChEMBL 返回无 molecule_chembl_id: {smiles[:80]}...")
+            continue
+        m2 = dict(m)
+        m2["chembl_id"] = mid
+        out.append(m2)
+    return out
+
+
+def enrich_drug_names_from_chembl(
+    molecules: List[Dict[str, Any]], chembl_client: ChEMBLClient
+) -> None:
+    """
+    为每条 DIQTA 记录写入 drug_name：优先 ChEMBL pref_name，否则 Excel name，否则 chembl_id。
+    供路径 B 临床/文献检索与 DIQTA_Chembl.json 使用。
+    """
+    for m in molecules:
+        cid = (m.get("chembl_id") or "").strip()
+        excel_name = (m.get("name") or "").strip()
+        if not cid:
+            m["drug_name"] = excel_name
+            continue
+        mol, ok = chembl_client.get_molecule_by_chembl_id(cid)
+        if ok and mol:
+            pref = (mol.get("pref_name") or "").strip()
+            m["drug_name"] = pref or excel_name or cid
+            m["chembl_pref_name"] = pref or None
+        else:
+            m["drug_name"] = excel_name or cid
+            m["chembl_pref_name"] = None
+
+
+def save_diqta_chembl_json(
+    path: Path,
+    molecules: List[Dict[str, Any]],
+    diqta_source: str,
+) -> None:
+    """路径 A 完成后写出父分子 ChEMBL 对齐信息与 drug_name 真值。"""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "source_diqta": diqta_source,
+        "records": [
+            {
+                "chembl_id": m.get("chembl_id"),
+                "smiles": m.get("smiles"),
+                "label": m.get("label", ""),
+                "excel_name": m.get("name", ""),
+                "drug_name": m.get("drug_name", ""),
+                "chembl_pref_name": m.get("chembl_pref_name"),
+            }
+            for m in molecules
+        ],
+    }
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, indent=2)
+    logger.info(f"已保存 DIQTA↔ChEMBL 父分子表（含 drug_name）: {path}")
 
 
 def process_path_a(molecule: Dict[str, Any],
@@ -113,7 +229,7 @@ def process_path_a(molecule: Dict[str, Any],
     physchem_props = physchem_calc.get_full_properties(chembl_id=chembl_id, smiles=smiles)
 
     # 获取靶点活性
-    bioactivity = bioactivity_retriever.retrieve(chembl_id)
+    bioactivity, _ = bioactivity_retriever.retrieve(chembl_id)
 
     # 获取临床状态
     drug_name = molecule.get("name", molecule.get("pref_name", chembl_id))
@@ -139,74 +255,75 @@ def process_path_a(molecule: Dict[str, Any],
     return json.loads(bundle.model_dump_json())
 
 
-def process_path_b(similar_molecule: Dict[str, Any],
-                  parent_chembl_id: str,
-                  tanimoto: float,
-                  assembler: EvidenceBundleAssembler,
-                  physchem_calc: PhysChemCalculator,
-                  bioactivity_retriever: BioactivityRetriever,
-                  clinical_retriever: ClinicalStatusRetriever,
-                  literature_retriever: LiteratureRetriever,
-                  sufficiency_judge: EvidenceSufficiencyJudge,
-                  conflict_detector: ConflictDetector) -> Optional[Dict]:
+def process_path_b(
+    similar_molecule: Dict[str, Any],
+    parent_chembl_id: str,
+    tanimoto: float,
+    assembler: EvidenceBundleAssembler,
+    physchem_calc: PhysChemCalculator,
+    bioactivity_retriever: BioactivityRetriever,
+    clinical_retriever: ClinicalStatusRetriever,
+    literature_retriever: LiteratureRetriever,
+    sufficiency_judge: EvidenceSufficiencyJudge,
+    conflict_detector: ConflictDetector,
+    chembl_client: ChEMBLClient,
+    parent_drug_name: Optional[str] = None,
+) -> Tuple[Optional[Dict[str, Any]], str]:
     """
     处理路径B：相似性扩展分子（标签未知）
 
-    Args:
-        similar_molecule: 相似分子信息
-        parent_chembl_id: 父分子ChEMBL ID
-        tanimoto: Tanimoto相似度
-        assembler: 证据包组装器
-        physchem_calc: 理化性质计算器
-        bioactivity_retriever: 靶点活性检索器
-        clinical_retriever: 临床状态检索器
-        literature_retriever: 文献检索器
-        sufficiency_judge: 证据充分性判定器
-        conflict_detector: 冲突检测器
-
     Returns:
-        证据包字典，如果不满足条件则返回None
+        (证据包 dict 或 None, screening_status)
+        screening_status: kept | evidence_insufficient | retrieval_incomplete | skipped
     """
     chembl_id = similar_molecule.get("chembl_id")
     smiles = similar_molecule.get("smiles")
 
     if not chembl_id or not smiles:
-        return None
+        return None, "skipped"
 
-    # 如果已在DIQTA中，跳过
     if similar_molecule.get("already_in_diqta"):
         logger.debug(f"跳过已存在于DIQTA的分子: {chembl_id}")
-        return None
+        return None, "skipped"
 
     logger.info(f"处理路径B分子: {chembl_id}")
 
-    # 获取理化性质
+    _mol, mol_ok = chembl_client.get_molecule_by_chembl_id(chembl_id)
+    # 相似度检索已完成；理化补全（ChEMBL → RDKit）
     physchem_props = physchem_calc.get_full_properties(chembl_id=chembl_id, smiles=smiles)
+    bioactivity, bio_ok = bioactivity_retriever.retrieve(chembl_id)
+    # 临床/文献查询名：优先子分子 pref_name，其次父行 DIQTA_Chembl.json 的 drug_name
+    child_pref = ""
+    if _mol and isinstance(_mol, dict):
+        child_pref = (str(_mol.get("pref_name") or "")).strip()
+    drug_name_for_queries = (
+        child_pref
+        or (parent_drug_name or "").strip()
+        or chembl_id
+    )
+    clinical = clinical_retriever.retrieve(chembl_id, drug_name=drug_name_for_queries)
+    literature = literature_retriever.retrieve(chembl_id, drug_name_for_queries)
 
-    # 获取靶点活性
-    bioactivity = bioactivity_retriever.retrieve(chembl_id)
+    retrieval_incomplete = (
+        not mol_ok
+        or not bio_ok
+        or (clinical.drug_info_status == "request_failed")
+    )
 
-    # 获取临床状态（需要先获取分子名称）
-    # TODO: 获取分子名称
-    clinical = clinical_retriever.retrieve(chembl_id)
+    if retrieval_incomplete:
+        logger.warning(f"取数不完整，暂不判定证据不足: {chembl_id}")
+        return None, "retrieval_incomplete"
 
-    # 获取文献
-    literature = literature_retriever.retrieve(chembl_id, chembl_id)
-
-    # 计算证据密度
     evidence_density = sufficiency_judge.compute_evidence_density(
         bioactivity, clinical, literature
     )
 
-    # 判定标签
     label_value, label_confidence = sufficiency_judge.judge_label(bioactivity, clinical)
 
-    # 如果无法确定标签，丢弃
     if label_value is None:
         logger.info(f"证据不足，丢弃分子: {chembl_id}")
-        return None
+        return None, "evidence_insufficient"
 
-    # 检测冲突
     conflict_result = conflict_detector.detect(bioactivity, clinical, literature)
     conflicts = None
     if conflict_result.has_conflict:
@@ -215,7 +332,6 @@ def process_path_b(similar_molecule: Dict[str, Any],
             "conflict_within_C": conflict_result.conflict_within_C
         }
 
-    # 组装证据包
     bundle = assembler.assemble(
         chembl_id=chembl_id,
         smiles=smiles,
@@ -233,14 +349,20 @@ def process_path_b(similar_molecule: Dict[str, Any],
         conflicts=conflicts
     )
 
-    return json.loads(bundle.model_dump_json())
+    bundle_dict = json.loads(bundle.model_dump_json())
+    meta = bundle_dict.setdefault("metadata", {})
+    meta["screening_status"] = "kept"
+    if parent_drug_name:
+        meta["parent_drug_name"] = parent_drug_name
+    return bundle_dict, "kept"
 
 
-def run_pipeline(diqta_file: str = "data/input/diqta.csv",
+def run_pipeline(diqta_file: str = "data/DIQTA阴性样本为主划分.xlsx",
                 output_file: str = "data/output/evidence_bundles.jsonl",
                 config_file: str = "config/pipeline.yaml",
                 max_molecules: Optional[int] = None,
-                sample_size: int = 5):
+                sample_size: int = 5,
+                diqta_chembl_json: str = "data/output/DIQTA_Chembl.json"):
     """
     运行完整的数据处理流程
 
@@ -250,9 +372,11 @@ def run_pipeline(diqta_file: str = "data/input/diqta.csv",
         config_file: 配置文件路径
         max_molecules: 最大处理分子数（用于测试）
         sample_size: 样本数量（用于快速测试）
+        diqta_chembl_json: 路径 A 结束后写入的父分子表（含 drug_name），默认与 evidence 同目录
     """
     # 加载配置
     config = load_config(config_file)
+    apply_ncbi_settings_from_config(config)
     setup_logging(config.get("logging", {}).get("file"))
 
     logger.info("=" * 60)
@@ -264,10 +388,26 @@ def run_pipeline(diqta_file: str = "data/input/diqta.csv",
     get_global_cache(cache_dir)
 
     chembl_client = ChEMBLClient()
-    pubmed_client = PubMedClient()
+    pub_cfg = (config.get("api") or {}).get("pubmed") or {}
+    pubmed_client = PubMedClient(
+        rate_limit=float(pub_cfg.get("rate_limit", 0.5)),
+        ncbi_email=pub_cfg.get("ncbi_email"),
+        ncbi_api_key=pub_cfg.get("ncbi_api_key"),
+        ncbi_tool=pub_cfg.get("ncbi_tool"),
+    )
     clinicaltrials_client = ClinicalTrialsClient()
 
-    similarity_retriever = SimilarityRetriever(chembl_client)
+    sim_cfg = (config.get("similarity") or {})
+    similarity_retriever = SimilarityRetriever(
+        chembl_client,
+        threshold=float(sim_cfg.get("threshold", 0.8)),
+        max_results=int(sim_cfg.get("max_results", 100)),
+    )
+    logger.info(
+        f"路径B 相似性扩展: threshold={similarity_retriever.threshold}, "
+        f"max_results={similarity_retriever.max_results}（与 chembl_excel_full_enrichment 一致："
+        "多组分 SMILES 取主片段再查 /similarity；结果去重并排除父分子）"
+    )
     physchem_calc = PhysChemCalculator(chembl_client)
     bioactivity_retriever = BioactivityRetriever(chembl_client)
     clinical_retriever = ClinicalStatusRetriever(chembl_client, clinicaltrials_client)
@@ -289,6 +429,12 @@ def run_pipeline(diqta_file: str = "data/input/diqta.csv",
         diqta_molecules = diqta_molecules[:sample_size]
         logger.info(f"测试模式：只处理 {len(diqta_molecules)} 个样本")
 
+    diqta_molecules = enrich_diqta_chembl_ids(diqta_molecules, chembl_client)
+    logger.info(f"解析 ChEMBL ID 后剩余 {len(diqta_molecules)} 个分子")
+    if not diqta_molecules:
+        logger.error("没有可处理的分子（缺少 ChEMBL ID 且 SMILES 无法在 ChEMBL 中匹配）")
+        return
+
     # DIQTA分子SMILES集合（用于去重）
     diqta_smiles = {m["smiles"] for m in diqta_molecules}
 
@@ -303,6 +449,7 @@ def run_pipeline(diqta_file: str = "data/input/diqta.csv",
 
     results = []
     discarded = []
+    retry_candidates: List[Dict[str, Any]] = []
 
     for i, molecule in enumerate(tqdm(diqta_molecules, desc="路径A处理")):
         try:
@@ -330,12 +477,17 @@ def run_pipeline(diqta_file: str = "data/input/diqta.csv",
                 "reason": str(e)
             })
 
-    # 处理路径B：相似性扩展分子
+    # 路径 A 完成后：父分子 drug_name（ChEMBL pref_name 优先）并落盘，路径 B 从此读入逻辑上的「真值」
+    enrich_drug_names_from_chembl(diqta_molecules, chembl_client)
+    diqta_chembl_path = Path(__file__).parent.parent / diqta_chembl_json
+    save_diqta_chembl_json(diqta_chembl_path, diqta_molecules, diqta_file)
+
+    # 处理路径B：相似性扩展分子（相似度 → 理化补全 在 process_path_b 内顺序执行）
     logger.info("-" * 40)
     logger.info("处理路径B: 相似性扩展分子")
     logger.info("-" * 40)
 
-    for molecule in tqdm(diqta_molecules[:sample_size], desc="路径B处理"):
+    for molecule in tqdm(diqta_molecules, desc="路径B处理"):
         try:
             chembl_id = molecule.get("chembl_id")
             smiles = molecule.get("smiles")
@@ -350,6 +502,18 @@ def run_pipeline(diqta_file: str = "data/input/diqta.csv",
                 diqta_smiles=diqta_smiles
             )
 
+            if not similarity_result.query_similarity_ok:
+                logger.warning(
+                    f"取数不完整，暂不判定证据不足: {chembl_id} (similarity.json)"
+                )
+                retry_candidates.append({
+                    "chembl_id": chembl_id,
+                    "context": "path_b_parent_similarity",
+                    "screening_status": "retrieval_incomplete",
+                    "reason": "similarity.json request failed",
+                })
+                continue
+
             # 处理每个相似分子
             for similar in similarity_result.similar_molecules:
                 try:
@@ -359,7 +523,7 @@ def run_pipeline(diqta_file: str = "data/input/diqta.csv",
                         "already_in_diqta": similar.already_in_diqta
                     }
 
-                    bundle = process_path_b(
+                    bundle, pb_status = process_path_b(
                         similar_molecule=similar_data,
                         parent_chembl_id=chembl_id,
                         tanimoto=similar.tanimoto,
@@ -369,15 +533,26 @@ def run_pipeline(diqta_file: str = "data/input/diqta.csv",
                         clinical_retriever=clinical_retriever,
                         literature_retriever=literature_retriever,
                         sufficiency_judge=sufficiency_judge,
-                        conflict_detector=conflict_detector
+                        conflict_detector=conflict_detector,
+                        chembl_client=chembl_client,
+                        parent_drug_name=molecule.get("drug_name"),
                     )
 
-                    if bundle:
+                    if pb_status == "kept" and bundle:
                         results.append(bundle)
-                    else:
+                    elif pb_status == "retrieval_incomplete":
+                        retry_candidates.append({
+                            "chembl_id": similar.chembl_id,
+                            "parent_chembl_id": chembl_id,
+                            "screening_status": "retrieval_incomplete",
+                            "reason": "chmbl_retrieval_incomplete",
+                        })
+                    elif pb_status == "evidence_insufficient":
                         discarded.append({
                             "chembl_id": similar.chembl_id,
-                            "reason": "insufficient_evidence"
+                            "parent_chembl_id": chembl_id,
+                            "reason": "evidence_insufficient",
+                            "screening_status": "evidence_insufficient",
                         })
 
                 except Exception as e:
@@ -397,24 +572,36 @@ def run_pipeline(diqta_file: str = "data/input/diqta.csv",
 
     logger.info(f"成功保存 {len(results)} 个证据包到 {output_path}")
 
-    # 保存丢弃的分子
+    # 保存丢弃的分子（真证据不足等）
     if discarded:
         discarded_path = output_path.parent / "discarded.jsonl"
         with open(discarded_path, 'w', encoding='utf-8') as f:
             for item in discarded:
                 f.write(json.dumps(item, ensure_ascii=False) + '\n')
-        logger.info(f"保存了 {len(discarded)} 个丢弃分子到 {discarded_path}")
+        logger.info(f"保存了 {len(discarded)} 条丢弃记录到 {discarded_path}")
+
+    if retry_candidates:
+        retry_path = output_path.parent / "retry_candidates.jsonl"
+        with open(retry_path, 'w', encoding='utf-8') as f:
+            for item in retry_candidates:
+                f.write(json.dumps(item, ensure_ascii=False) + '\n')
+        logger.info(
+            f"保存了 {len(retry_candidates)} 条取数不完整待重试记录到 {retry_path}"
+        )
 
     logger.info("=" * 60)
     logger.info("流程完成!")
-    logger.info(f"总计处理: {len(results)} 个成功, {len(discarded)} 个丢弃")
+    logger.info(
+        f"总计: {len(results)} 个证据包, {len(discarded)} 条丢弃, "
+        f"{len(retry_candidates)} 条取数不完整（retry_candidates）"
+    )
     logger.info("=" * 60)
 
 
 def main():
     """主函数"""
     parser = argparse.ArgumentParser(description="心脏毒性数据集增强流程")
-    parser.add_argument("--diqta", type=str, default="data/input/diqta.csv",
+    parser.add_argument("--diqta", type=str, default="data/DIQTA阴性样本为主划分.xlsx",
                        help="DIQTA数据文件路径")
     parser.add_argument("--output", type=str, default="data/output/evidence_bundles.jsonl",
                        help="输出文件路径")
@@ -424,6 +611,12 @@ def main():
                        help="样本数量（0表示处理全部）")
     parser.add_argument("--max", type=int, default=None,
                        help="最大处理分子数")
+    parser.add_argument(
+        "--diqta-chembl-json",
+        type=str,
+        default="data/output/DIQTA_Chembl.json",
+        help="路径 A 完成后保存的 DIQTA↔ChEMBL 父分子表（含 drug_name）",
+    )
 
     args = parser.parse_args()
 
@@ -432,7 +625,8 @@ def main():
         output_file=args.output,
         config_file=args.config,
         max_molecules=args.max,
-        sample_size=args.sample
+        sample_size=args.sample,
+        diqta_chembl_json=args.diqta_chembl_json,
     )
 
 

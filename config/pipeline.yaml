@@ -8,7 +8,7 @@ pipeline:
   # 数据路径
   data:
     input:
-      diqta: "data/input/diqta.csv"
+      diqta: "data/DIQTA阴性样本为主划分.xlsx"
       crediblemeds: "data/input/crediblemeds.csv"
 
     output:
@@ -74,6 +74,10 @@ pipeline:
     pubmed:
       rate_limit: 0.5
       timeout: 30
+      # NCBI E-utilities 要求提供联系邮箱；也可用环境变量 NCBI_EMAIL / NCBI_API_KEY（环境变量优先）
+      ncbi_email: "da2025518@gmail.com"
+      ncbi_api_key: "01bf127afd6abd22da70a6edd6f3dd3e0d0a"
+      ncbi_tool: "cardiotox_dataset_augmentation"
     clinicaltrials:
       rate_limit: 0.5
       timeout: 30

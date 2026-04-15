@@ -206,7 +206,7 @@ def main() -> None:
 
     log_path = None if args.no_log_file else out_dir / "chembl_name_retry.log"
     _setup_logging(log_path, args.verbose)
-    _LOG.info("excel=%s per_row=%s ignore_case=%s", excel_path, per_row_path, args.ignore_case)
+    _LOG.info(f"excel={excel_path} per_row={per_row_path} ignore_case={args.ignore_case}")
 
     if args.sheet is None:
         sheet_param: Any = 0
@@ -246,10 +246,10 @@ def main() -> None:
         try:
             ri = int(pr["excel_row_index"])
         except Exception:
-            _LOG.warning("bad excel_row_index: %s", pr.get("excel_row_index"))
+            _LOG.warning(f"bad excel_row_index: {pr.get('excel_row_index')}")
             continue
         if ri < 0 or ri >= len(df_x):
-            _LOG.warning("row out of range: %d", ri)
+            _LOG.warning(f"row out of range: {ri}")
             continue
 
         row_x = df_x.iloc[ri]
@@ -289,12 +289,9 @@ def main() -> None:
             en = str(excel_name or "")
             pbar_nm.set_postfix_str(en[:40] + ("…" if len(en) > 40 else ""), refresh=True)
 
+        en_repr = repr(excel_name[:60] if excel_name else "")
         _LOG.info(
-            "row=%d excel_name=%r api_n=%d exact_n=%d",
-            ri,
-            (excel_name[:60] if excel_name else ""),
-            len(raw_mols),
-            len(digests),
+            f"row={ri} excel_name={en_repr} api_n={len(raw_mols)} exact_n={len(digests)}"
         )
 
     pdf = pd.DataFrame(rows)

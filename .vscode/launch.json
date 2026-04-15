@@ -12,7 +12,7 @@
         "--sample",
         "5",
         "--diqta",
-        "data/input/diqta.csv",
+        "data/DIQTA阴性样本为主划分.xlsx",
         "--output",
         "data/output/evidence_bundles.jsonl"
       ],
@@ -31,7 +31,7 @@
         "--sample",
         "0",
         "--diqta",
-        "data/input/diqta.csv",
+        "data/DIQTA阴性样本为主划分.xlsx",
         "--output",
         "data/output/evidence_bundles.jsonl"
       ],
@@ -45,20 +45,213 @@
       "request": "launch",
       "program": "${workspaceFolder}/src/m1_similarity.py",
       "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
       "python": "/AIRvePFS/dair/conda_envs/cad_new/bin/python",
+      "args": [
+        "--chembl-id",
+        "CHEMBL473",
+        "--threshold",
+        "0.8",
+        "--max",
+        "8"
+      ],
       "env": {
-        "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/src"
+        "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/src",
+        "PYTHONUNBUFFERED": "1"
       }
     },
     {
       "name": "调试M2理化性质计算",
       "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/src/m2_physchem.py",
+      "program": "${workspaceFolder}/src/m2_physchem_calculator.py",
       "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
       "python": "/AIRvePFS/dair/conda_envs/cad_new/bin/python",
+      "args": [
+        "--mode",
+        "full",
+        "--chembl-id",
+        "CHEMBL473",
+        "--smiles",
+        "CN(CCOc1ccc(NS(C)(=O)=O)cc1)CCc1ccc(NS(C)(=O)=O)cc1",
+        "--output",
+        "data/output/test_m2.json"
+      ],
       "env": {
-        "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/src"
+        "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/src",
+        "PYTHONUNBUFFERED": "1"
+      }
+    },
+    {
+      "name": "调试M2(test_m2.json, debug_m_stages)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/debug_m_stages.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "python": "/AIRvePFS/dair/conda_envs/cad_new/bin/python",
+      "args": [
+        "--stage",
+        "m2",
+        "--mode",
+        "full",
+        "--chembl-id",
+        "CHEMBL473",
+        "--smiles",
+        "CN(CCOc1ccc(NS(C)(=O)=O)cc1)CCc1ccc(NS(C)(=O)=O)cc1",
+        "--m2-output",
+        "data/output/test_m2.json"
+      ],
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/src",
+        "PYTHONUNBUFFERED": "1"
+      }
+    },
+    {
+      "name": "调试M3汇总(test_m3.json)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/debug_m_stages.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "python": "/AIRvePFS/dair/conda_envs/cad_new/bin/python",
+      "args": [
+        "--stage",
+        "m3",
+        "--chembl-id",
+        "CHEMBL473",
+        "--drug-name",
+        "dofetilide",
+        "--max-pubmed",
+        "5",
+        "--m3-output",
+        "data/output/test_m3.json"
+      ],
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/src",
+        "PYTHONUNBUFFERED": "1"
+      }
+    },
+    {
+      "name": "调试M3A靶点活性",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/debug_m_stages.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "python": "/AIRvePFS/dair/conda_envs/cad_new/bin/python",
+      "args": [
+        "--stage",
+        "m3a",
+        "--chembl-id",
+        "CHEMBL473"
+      ],
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/src",
+        "PYTHONUNBUFFERED": "1"
+      }
+    },
+    {
+      "name": "调试M3B临床状态",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/debug_m_stages.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "python": "/AIRvePFS/dair/conda_envs/cad_new/bin/python",
+      "args": [
+        "--stage",
+        "m3b",
+        "--chembl-id",
+        "CHEMBL473",
+        "--refresh-clinical"
+      ],
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/src",
+        "PYTHONUNBUFFERED": "1"
+      }
+    },
+    {
+      "name": "调试M3C文献检索",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/debug_m_stages.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "python": "/AIRvePFS/dair/conda_envs/cad_new/bin/python",
+      "args": [
+        "--stage",
+        "m3c",
+        "--chembl-id",
+        "CHEMBL473",
+        "--drug-name",
+        "dofetilide",
+        "--max-pubmed",
+        "5"
+      ],
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/src",
+        "PYTHONUNBUFFERED": "1"
+      }
+    },
+    {
+      "name": "调试M4证据包组装",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/debug_m_stages.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "python": "/AIRvePFS/dair/conda_envs/cad_new/bin/python",
+      "args": [
+        "--stage",
+        "m4",
+        "--chembl-id",
+        "CHEMBL473",
+        "--smiles",
+        "CN(CCOc1ccc(NS(C)(=O)=O)cc1)CCc1ccc(NS(C)(=O)=O)cc1",
+        "--m2-json",
+        "data/output/test_m2.json",
+        "--m3-json",
+        "data/output/test_m3.json"
+      ],
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/src",
+        "PYTHONUNBUFFERED": "1"
+      }
+    },
+    {
+      "name": "调试M5证据充分性",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/debug_m_stages.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "python": "/AIRvePFS/dair/conda_envs/cad_new/bin/python",
+      "args": [
+        "--stage",
+        "m5"
+      ],
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/src",
+        "PYTHONUNBUFFERED": "1"
+      }
+    },
+    {
+      "name": "调试M6冲突检测",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/debug_m_stages.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "python": "/AIRvePFS/dair/conda_envs/cad_new/bin/python",
+      "args": [
+        "--stage",
+        "m6"
+      ],
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/src",
+        "PYTHONUNBUFFERED": "1"
       }
     },
     {

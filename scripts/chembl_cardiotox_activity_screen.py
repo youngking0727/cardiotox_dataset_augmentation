@@ -35,12 +35,21 @@ from typing import Any, Optional
 
 import pandas as pd
 
+_SRC = Path(__file__).resolve().parent.parent / "src"
+if _SRC.is_dir():
+    import sys
+
+    sys.path.insert(0, str(_SRC))
+
 try:
-    from chembl_webresource_client.new_client import new_client
-except ImportError as e:
-    raise SystemExit(
-        "需要安装：pip install chembl-webresource-client\n" + str(e)
-    ) from e
+    from utils.chembl_spore_client import new_client
+except ImportError:
+    try:
+        from chembl_webresource_client.new_client import new_client
+    except ImportError as e:
+        raise SystemExit(
+            "需要安装：pip install chembl-webresource-client\n" + str(e)
+        ) from e
 
 try:
     from tqdm.auto import tqdm as _tqdm

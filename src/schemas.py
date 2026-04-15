@@ -1,7 +1,7 @@
 """Pydantic Schema定义"""
 
 from datetime import datetime
-from typing import List, Optional, Dict, Any, Union
+from typing import List, Optional, Dict, Any, Union, Literal
 from pydantic import BaseModel, Field
 
 
@@ -26,6 +26,10 @@ class SimilarityResult(BaseModel):
     query_smiles: str
     query_chembl_id: Optional[str] = None
     similar_molecules: List[SimilarMolecule]
+    query_similarity_ok: bool = Field(
+        True,
+        description="False 表示 similarity.json 请求失败（非空列表与未命中）",
+    )
 
 
 # M2: 理化性质
@@ -44,6 +48,14 @@ class PhysChemProperties(BaseModel):
     acidic_pka: Optional[SourceInfo] = Field(None, description="酸性中心pKa")
     ro5_violations: SourceInfo = Field(..., description="Lipinski规则违反数")
     qed: SourceInfo = Field(..., description="QED类药性评分")
+    rdkit_descriptors: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="RDKit 计算描述符全集（与 config/Features.json 对齐）",
+    )
+    engineered_features: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="规则/SMARTS/hERG-like 等工程特征（与 config/Features.json 对齐）",
+    )
 
 
 # M3-A: 靶点活性
@@ -94,13 +106,36 @@ class ExternalDBFlags(BaseModel):
 
 class ClinicalEvidence(BaseModel):
     """临床证据"""
+
     max_phase: Optional[int] = Field(None, ge=0, le=4)
-    approved: Optional[bool] = None
+    approved: Optional[bool] = Field(
+        None,
+        description=(
+            "是否与 max_phase 一致推导：max_phase==4 时为 True，0–3 为 False；"
+            "无 drug 记录时为 None。勿与外部库占位字段混读。"
+        ),
+    )
     withdrawn: WithdrawalInfo
     black_box_warning: Optional[bool] = None
     clinical_trials: List[ClinicalTrialInfo]
-    external_db_flags: Dict[str, ExternalDBFlags]
-    fda_label_warnings: List[str]
+    external_db_flags: Dict[str, ExternalDBFlags] = Field(
+        ...,
+        description=(
+            "外部专项库（CardioTox/eTox/DILIrank 等）占位结构；全为 present=false 通常表示"
+            "尚未接入或尚未映射，不代表「无心脏毒性风险」。"
+        ),
+    )
+    fda_label_warnings: List[str] = Field(
+        default_factory=list,
+        description="FDA/标签警告摘录；空列表多因未接 Orange Book/标签 API，不代表无黑框或无心律风险。",
+    )
+    drug_info_status: Optional[str] = Field(
+        None,
+        description=(
+            "ChEMBL drug.json 拉取状态：ok | not_found | request_failed；"
+            "null 表示未写入状态位，不等同于「无临床信息」。"
+        ),
+    )
 
 
 # M3-C: 文献证据
@@ -138,8 +173,12 @@ class LabelInfo(BaseModel):
     confidence: Optional[str] = Field(None, description="high/medium/low")
 
 
+EvidenceSufficiencyTier = Literal["insufficient", "usable", "strong"]
+
+
 class EvidenceDensity(BaseModel):
-    """证据密度指标"""
+    """证据密度指标（第一层：充分性；total_score 映射 sufficiency_tier）"""
+
     has_herg_measurement: bool
     has_clinical_phase_info: bool
     has_withdrawal_info: bool
@@ -148,6 +187,31 @@ class EvidenceDensity(BaseModel):
     pubmed_cardiotox_relevant_count: int
     patent_count: int
     total_score: int
+    sufficiency_tier: EvidenceSufficiencyTier = Field(
+        ...,
+        description="insufficient：难继续推理；usable：可入库/可推理；strong：多维度命中",
+    )
+
+
+class LabelJudgmentDetail(BaseModel):
+    """第二层：标签判定输出（与充分性分层解耦；confidence 语义见 notes）"""
+
+    label: Optional[str] = Field(
+        None,
+        description="torsadogenic / non-torsadogenic；None 表示 undetermined",
+    )
+    confidence: Optional[str] = Field(
+        None,
+        description="low / medium / high；机制提示与临床 TdP 结论区分见 notes",
+    )
+    rationale_codes: List[str] = Field(
+        default_factory=list,
+        description="命中的规则/信号编码，便于审计",
+    )
+    notes: str = Field(
+        "",
+        description="为何给出该置信度、与真实世界标签的差异提示",
+    )
 
 
 class ConflictInfo(BaseModel):

@@ -4,10 +4,10 @@ import logging
 from typing import List, Optional, Dict, Any, Set
 from pathlib import Path
 
-from ..schemas import LiteratureEvidence, PubMedArticle, PatentInfo
-from ..utils.chembl_client import ChEMBLClient
-from ..utils.pubmed_client import PubMedClient
-from ..utils.cache import get_global_cache
+from schemas import LiteratureEvidence, PubMedArticle, PatentInfo
+from utils.chembl_client import ChEMBLClient
+from utils.pubmed_client import PubMedClient
+from utils.cache import get_global_cache
 
 logger = logging.getLogger(__name__)
 
@@ -144,11 +144,16 @@ class LiteratureRetriever:
             PubMed ID列表
         """
         try:
-            activities = self.chembl_client.get_activities(chembl_id)
+            raw = self.chembl_client.get_activities(chembl_id)
+            activities = raw[0] if isinstance(raw, tuple) else raw
+            if not isinstance(activities, list):
+                activities = []
 
             # 提取关联的document_chembl_id
             doc_ids = set()
             for activity in activities:
+                if not isinstance(activity, dict):
+                    continue
                 doc_id = activity.get("document_chembl_id")
                 if doc_id:
                     doc_ids.add(doc_id)
@@ -163,27 +168,22 @@ class LiteratureRetriever:
             logger.warning(f"从ChEMBL获取关联文献失败: {chembl_id}, 错误: {e}")
             return []
 
-    def get_cardiotox_relevant_count(self, articles: List[PubMedArticle]) -> int:
+    @staticmethod
+    def count_cardiotox_relevant(articles: List[PubMedArticle]) -> int:
         """
-        获取心脏毒性相关文章数量
-
-        Args:
-            articles: PubMed文章列表
-
-        Returns:
-            相关文章数量
+        统计心脏毒性相关文章数量（不访问 PubMed，仅规则计数；供 M5 等无 LiteratureRetriever 实例场景使用）。
         """
         count = 0
         for article in articles:
-            # 跳过综述
             if article.is_review:
                 continue
-
-            # 关键词命中且分子被提及
             if article.relevance_keywords_hit and article.molecule_mentioned:
                 count += 1
-
         return count
+
+    def get_cardiotox_relevant_count(self, articles: List[PubMedArticle]) -> int:
+        """实例方法：与 :meth:`count_cardiotox_relevant` 逻辑一致。"""
+        return self.count_cardiotox_relevant(articles)
 
 
 def create_literature_retriever() -> LiteratureRetriever:

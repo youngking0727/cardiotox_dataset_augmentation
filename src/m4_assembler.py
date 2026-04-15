@@ -5,12 +5,12 @@ from datetime import datetime
 from typing import Optional, Dict, Any, List
 from pathlib import Path
 
-from ..schemas import (
+from schemas import (
     EvidenceBundle, LabelInfo, PhysChemProperties,
     TargetBioactivity, ClinicalEvidence, LiteratureEvidence,
     EvidenceDensity
 )
-from ..utils.chembl_client import ChEMBLClient
+from utils.chembl_client import ChEMBLClient
 
 logger = logging.getLogger(__name__)
 
@@ -125,8 +125,8 @@ class EvidenceBundleAssembler:
             分子信息字典
         """
         try:
-            molecule = self.chembl_client.get_molecule_by_chembl_id(chembl_id)
-            if not molecule:
+            molecule, _ok = self.chembl_client.get_molecule_by_chembl_id(chembl_id)
+            if not molecule or not isinstance(molecule, dict):
                 return {}
 
             structures = molecule.get("molecule_structures", {})
@@ -144,7 +144,7 @@ class EvidenceBundleAssembler:
 
     def _empty_physchem(self) -> PhysChemProperties:
         """返回空的理化性质对象"""
-        from ..schemas import SourceInfo
+        from schemas import SourceInfo
         return PhysChemProperties(
             mw=SourceInfo(value=0, source="none"),
             logp=SourceInfo(value=0, source="none"),
@@ -158,12 +158,14 @@ class EvidenceBundleAssembler:
             basic_pka=None,
             acidic_pka=None,
             ro5_violations=SourceInfo(value=0, source="none"),
-            qed=SourceInfo(value=0, source="none")
+            qed=SourceInfo(value=0, source="none"),
+            rdkit_descriptors={},
+            engineered_features={},
         )
 
     def _empty_clinical(self) -> ClinicalEvidence:
         """返回空的临床证据对象"""
-        from ..schemas import WithdrawalInfo, ExternalDBFlags
+        from schemas import WithdrawalInfo, ExternalDBFlags
         return ClinicalEvidence(
             max_phase=None,
             approved=None,

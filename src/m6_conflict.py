@@ -4,7 +4,7 @@ import logging
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 
-from ..schemas import (
+from schemas import (
     TargetBioactivity, ClinicalEvidence, LiteratureEvidence,
     PubMedArticle
 )

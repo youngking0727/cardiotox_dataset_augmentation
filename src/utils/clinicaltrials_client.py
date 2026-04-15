@@ -15,11 +15,38 @@ class ClinicalTrialsClient:
 
     API_BASE_URL = "https://clinicaltrials.gov/api/v2"
 
-    # 心脏毒性相关关键词
-    QT_KEYWORDS = [
-        "QT prolongation", "QT interval", "torsades", "torsade",
-        "arrhythmia", "arrhythmia", "cardiac arrhythmia", "ventricular arrhythmia",
-        "sudden cardiac death", "cardiac death"
+    # API 查询用：仅用语义较窄的 QT/hERG/复极相关词，避免「心律失常」等泛词拉爆噪声
+    QT_QUERY_TERMS = [
+        "QT prolongation",
+        "QT interval",
+        "QTc",
+        "long QT",
+        "torsades",
+        "torsade de pointes",
+        "hERG",
+        "KCNH2",
+        "prolonged QT",
+        "QT prolonged",
+        "electrocardiogram QT",
+    ]
+
+    # 标题/摘要判定 qt_related=True：必须与查询同级的「强相关」短语（不用单独 arrhythmia/cardiac）
+    QT_STRICT_MATCH_PHRASES = [
+        "qt prolongation",
+        "qt interval",
+        "qtc",
+        "qtc prolongation",
+        "long qt",
+        "long qt syndrome",
+        "torsade",
+        "torsades",
+        "torsade de pointes",
+        "herg",
+        "kcnh2",
+        "prolonged qt",
+        "qt prolonged",
+        "electrocardiogram qt",
+        "ecg qt",
     ]
 
     def __init__(self, cache_dir: Optional[Path] = None, rate_limit: float = 0.5):
@@ -112,8 +139,8 @@ class ClinicalTrialsClient:
         Returns:
             相关试验列表
         """
-        # 构建查询: 药物名称 AND (QT延长 OR 心律失常 OR 心脏毒性)
-        qt_query = " OR ".join([f'"{kw}"' for kw in self.QT_KEYWORDS])
+        # 构建查询: 药物名称 AND (窄 QT/hERG 相关词)
+        qt_query = " OR ".join([f'"{kw}"' for kw in self.QT_QUERY_TERMS])
         query = f'{drug_name} AND ({qt_query})'
 
         studies = self.search_studies(query, max_results=max_results)
@@ -136,9 +163,8 @@ class ClinicalTrialsClient:
             # 试验状态
             status_str = status.get("overallStatus", "Unknown")
 
-            # 检查是否与QT相关（通过关键词匹配）
             text = (title + " " + summary).lower()
-            qt_related = any(kw.lower() in text for kw in self.QT_KEYWORDS)
+            qt_related = self._text_matches_strict_qt(text)
 
             if qt_related:
                 trials.append({
@@ -150,6 +176,11 @@ class ClinicalTrialsClient:
                 })
 
         return trials
+
+    @staticmethod
+    def _text_matches_strict_qt(text_lower: str) -> bool:
+        """标题/摘要是否含 QT/复极/hERG 直接表述（不用泛心血管词）。"""
+        return any(p in text_lower for p in ClinicalTrialsClient.QT_STRICT_MATCH_PHRASES)
 
 
 def create_clinicaltrials_client(cache_dir: Optional[Path] = None) -> ClinicalTrialsClient:
