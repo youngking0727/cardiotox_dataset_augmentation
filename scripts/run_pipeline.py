@@ -115,29 +115,32 @@ def load_diqta_data(diqta_file: str) -> List[Dict[str, Any]]:
 def enrich_diqta_chembl_ids(
     molecules: List[Dict[str, Any]], chembl_client: ChEMBLClient
 ) -> List[Dict[str, Any]]:
-    """若行内无 ChEMBL ID，则根据 SMILES 在 ChEMBL 中解析（PubChem 表等）。"""
+    """若行内无 ChEMBL ID，则根据 pref_name / 药品名（Excel name 等）在 ChEMBL 中解析。"""
     out: List[Dict[str, Any]] = []
     for m in molecules:
         cid = (m.get("chembl_id") or "").strip()
         if cid.upper().startswith("CHEMBL"):
             out.append(m)
             continue
-        smiles = m.get("smiles")
-        if not smiles:
-            logger.warning(f"跳过无 SMILES 且无 ChEMBL ID 的记录: {m}")
+        pref = (m.get("pref_name") or m.get("name") or "").strip()
+        smiles = (m.get("smiles") or "").strip()
+        if not pref and not smiles:
+            logger.warning(
+                f"跳过无 ChEMBL ID 且无 pref_name/name/SMILES 的记录: {m}"
+            )
             continue
-        info, mol_ok = chembl_client.get_molecule_by_smiles(smiles)
+        info, mol_ok = chembl_client.get_drug_by_name(pref, smiles=smiles or None)
         if not mol_ok:
             logger.warning(
-                f"molecule.json 请求失败，跳过解析 ChEMBL ID（SMILES 前80字符）: {str(smiles)[:80]}"
+                f"molecule.json 请求失败，跳过解析 ChEMBL ID（pref_name 前80字符）: {pref[:80]}"
             )
             continue
         if not info:
-            logger.warning(f"ChEMBL 未匹配 SMILES（未命中，前80字符）: {str(smiles)[:80]}...")
+            logger.warning(f"ChEMBL 未匹配 pref_name（未命中）: {pref[:80]}...")
             continue
         mid = info.get("molecule_chembl_id")
         if not mid:
-            logger.warning(f"ChEMBL 返回无 molecule_chembl_id: {smiles[:80]}...")
+            logger.warning(f"ChEMBL 返回无 molecule_chembl_id: {pref[:80]}...")
             continue
         m2 = dict(m)
         m2["chembl_id"] = mid
@@ -496,7 +499,9 @@ def run_pipeline(diqta_file: str = "data/DIQTA阴性样本为主划分.xlsx",
     diqta_molecules = enrich_diqta_chembl_ids(diqta_molecules, chembl_client)
     logger.info(f"解析 ChEMBL ID 后剩余 {len(diqta_molecules)} 个分子")
     if not diqta_molecules:
-        logger.error("没有可处理的分子（缺少 ChEMBL ID 且 SMILES 无法在 ChEMBL 中匹配）")
+        logger.error(
+            "没有可处理的分子（缺少 ChEMBL ID 且 pref_name/name 无法在 ChEMBL 中匹配）"
+        )
         return
 
     # DIQTA分子SMILES集合（用于去重）

@@ -60,6 +60,13 @@ def _smiles_log_preview(smiles: str, max_len: int = 120) -> str:
     return s[:max_len] + "…"
 
 
+def _pref_name_log_preview(pref_name: str, max_len: int = 120) -> str:
+    s = pref_name.strip() if pref_name else ""
+    if len(s) <= max_len:
+        return s
+    return s[:max_len] + "…"
+
+
 def _payload_looks_like_html(text: str) -> bool:
     if not text:
         return False
@@ -138,6 +145,52 @@ def _extract_named_list(data: Any, key: str) -> List[Dict[str, Any]]:
         if isinstance(raw, list):
             return [x for x in raw if isinstance(x, dict)]
     return []
+
+
+def _extract_drugs_payload(data: Any) -> List[Dict[str, Any]]:
+    if isinstance(data, dict):
+        d = data.get("drugs")
+        if isinstance(d, list):
+            return [x for x in d if isinstance(x, dict)]
+    return []
+
+
+def _normalize_drug_query(s: str) -> str:
+    """去 NBSP、合并空白、小写，用于名称比对。"""
+    t = (s or "").replace("\xa0", " ").replace("\u2009", " ")
+    return " ".join(t.split()).strip().lower()
+
+
+def _row_pref_name_matches_iexact(row: Dict[str, Any], pn: str) -> bool:
+    pref = (row.get("pref_name") or "").strip()
+    return _normalize_drug_query(pref) == _normalize_drug_query(pn)
+
+
+def _row_pref_name_matches_icontains(row: Dict[str, Any], pn: str) -> bool:
+    """查询串与 ChEMBL pref_name 互相包含（兼容盐型/制剂后缀）。"""
+    npref = _normalize_drug_query(row.get("pref_name") or "")
+    nq = _normalize_drug_query(pn)
+    if not npref or not nq:
+        return False
+    return nq in npref or npref in nq
+
+
+def _row_synonym_matches_query(row: Dict[str, Any], pn: str) -> bool:
+    """molecule 列表项里若嵌 molecule_synonyms，则与查询比对。"""
+    nq = _normalize_drug_query(pn)
+    syns = row.get("molecule_synonyms")
+    if not isinstance(syns, list):
+        return False
+    for s in syns:
+        if not isinstance(s, dict):
+            continue
+        syn = (s.get("molecule_synonym") or s.get("synonym") or "").strip()
+        if not syn:
+            continue
+        ns = _normalize_drug_query(syn)
+        if ns == nq or nq in ns or ns in nq:
+            return True
+    return False
 
 
 class ChEMBLClient:
@@ -239,15 +292,33 @@ class ChEMBLClient:
                     return None, False
         return None, False
 
-    def get_molecule_by_smiles(self, smiles: str) -> Tuple[Optional[Dict[str, Any]], bool]:
+    def _try_molecule_filter(
+        self,
+        layer_name: str,
+        extra: Dict[str, Any],
+        identifier: str,
+    ) -> Tuple[Optional[List[Dict[str, Any]]], bool]:
+        params: Dict[str, Any] = {
+            "limit": 25,
+            "format": "json",
+            **extra,
+        }
+        data, ok = self._request_json(
+            "molecule.json",
+            params=params,
+            resource_name=f"molecule.json({layer_name})",
+            identifier=identifier,
+        )
+        if not ok:
+            return None, False
+        rows = _extract_molecules_payload(data)
+        return rows, True
+
+    def _get_molecule_by_smiles_connectivity(
+        self, smiles: str
+    ) -> Tuple[Optional[Dict[str, Any]], bool]:
         """
-        按 SMILES 查分子（官方支持 connectivity / exact 等，无需先转 InChIKey）。
-
-        优先顺序（与 ChEMBL 文档示例一致）：
-        1) ``molecule.json?molecule_structures__canonical_smiles__connectivity=...``
-        2) ``molecule_structures__canonical_smiles__iexact``（精确匹配兜底）
-        3) ``molecule_structures__canonical_smiles__flexmatch``（仅在前两步无命中时使用）
-
+        按 SMILES 查分子（connectivity → iexact → flexmatch）。
         传输失败返回 ({}, False)；未命中返回 (None, True)；命中返回 (dict, True)。
         """
         sm_prev = _smiles_log_preview(smiles)
@@ -279,7 +350,6 @@ class ChEMBLClient:
             rows = _extract_molecules_payload(data)
             return rows, True
 
-        # 1) 官方文档「Connectivity search」示例
         rows, ok = try_molecule_filter(
             "connectivity",
             {"molecule_structures__canonical_smiles__connectivity": s},
@@ -289,7 +359,6 @@ class ChEMBLClient:
         if rows:
             return dict(rows[0]), True
 
-        # 2) 精确匹配（仍是对 SMILES 字段的查询，非 InChIKey）
         rows2, ok2 = try_molecule_filter(
             "iexact",
             {"molecule_structures__canonical_smiles__iexact": s},
@@ -299,7 +368,6 @@ class ChEMBLClient:
         if rows2:
             return dict(rows2[0]), True
 
-        # 3) flexmatch：仅作末级兜底，不作为主查询
         rows3, ok3 = try_molecule_filter(
             "flexmatch",
             {"molecule_structures__canonical_smiles__flexmatch": smiles},
@@ -310,10 +378,154 @@ class ChEMBLClient:
             return dict(rows3[0]), True
 
         logger.warning(
-            f"ChEMBL 按 SMILES 未命中（connectivity / iexact / flexmatch 均无结果）| "
-            f"预览={sm_prev}"
+            f"ChEMBL 按 SMILES 未命中（connectivity / iexact / flexmatch）| 预览={sm_prev}"
         )
         return None, True
+
+    def get_drug_by_name(
+        self,
+        drug_name: str,
+        smiles: Optional[str] = None,
+    ) -> Tuple[Optional[Dict[str, Any]], bool]:
+        """
+        按「药名」解析 ChEMBL 分子（DIQTA 通用名/商品名等），顺序：
+
+        1) ``drug.json?pref_name__iexact`` → 取 ``molecule_chembl_id`` 再拉 ``molecule/{id}``
+        2) ``molecule.json?preferred_name__iexact``（若服务端支持该 filter）
+        3) ``molecule.json?pref_name__iexact``
+        4) 同义词：``molecule_synonyms__molecule_synonym__iexact``、
+           ``molecule_synonyms__synonyms__iexact``、``molecule_synonyms__synonym__iexact``
+        5) ``pref_name__icontains``（多命中时优先全词匹配 pref_name）
+        6) 若仍无结果且提供 ``smiles``：按 SMILES connectivity / iexact / flexmatch 兜底
+
+        仅 SMILES、无药名时：直接走第 6 步。
+
+        传输失败返回 ({}, False)；未命中返回 (None, True)；命中返回 (dict, True)。
+        """
+        pn = (drug_name or "").strip()
+        sm = (smiles or "").strip()
+        if not pn and not sm:
+            logger.warning("get_drug_by_name: 空 drug_name 且无 SMILES")
+            return None, True
+
+        id_prev = _pref_name_log_preview(pn) if pn else _smiles_log_preview(sm)
+
+        # 1) drug 端点（通用名/商品名与 drug.pref_name 对齐时）
+        if pn:
+            data, ok = self._request_json(
+                "drug.json",
+                params={
+                    "pref_name__iexact": pn,
+                    "limit": 10,
+                    "format": "json",
+                },
+                resource_name="drug.json(pref_name__iexact)",
+                identifier=id_prev,
+            )
+            if ok:
+                drugs = _extract_drugs_payload(data)
+            else:
+                logger.warning(
+                    "ChEMBL drug.json 请求失败，跳过 drug 层并继续尝试 molecule | %s",
+                    id_prev,
+                )
+                drugs = []
+            for dr in drugs:
+                mid = dr.get("molecule_chembl_id")
+                if not mid:
+                    continue
+                # drug 层必须与查询名一致（避免无效 filter 返回无关 drug）
+                if not _row_pref_name_matches_icontains(
+                    {"pref_name": dr.get("pref_name")}, pn
+                ):
+                    continue
+                mol, ok_m = self.get_molecule_by_chembl_id(str(mid))
+                if not ok_m:
+                    return {}, False
+                if mol:
+                    logger.info(
+                        "ChEMBL 命中: drug.json pref_name__iexact -> %s",
+                        mid,
+                    )
+                    return mol, True
+
+            # 仅使用 ChEMBL 文档中存在的 molecule filter；未知参数会被忽略并返回「全表前几
+            # 条」→ 曾导致所有查询都命中同一条（如 CHEMBL2）。下面每条结果必须与本行 pref/同义词
+            # 与查询字符串校验通过才采纳。
+            syn_molecule_filters: List[str] = [
+                "pref_name__iexact",
+                "molecule_synonyms__molecule_synonym__iexact",
+                "molecule_synonyms__synonym__iexact",
+            ]
+            for fk in syn_molecule_filters:
+                rows, ok_f = self._try_molecule_filter(
+                    fk,
+                    {fk: pn},
+                    id_prev,
+                )
+                if not ok_f:
+                    logger.debug(
+                        "ChEMBL molecule 层 %s 请求失败或 filter 不支持，尝试下一层",
+                        fk,
+                    )
+                    continue
+                if not rows:
+                    continue
+                for row in rows:
+                    if fk == "pref_name__iexact":
+                        if _row_pref_name_matches_iexact(row, pn):
+                            logger.info(
+                                "ChEMBL 命中: molecule.json pref_name__iexact（已校验）"
+                            )
+                            return dict(row), True
+                    else:
+                        if (
+                            _row_synonym_matches_query(row, pn)
+                            or _row_pref_name_matches_iexact(row, pn)
+                            or _row_pref_name_matches_icontains(row, pn)
+                        ):
+                            logger.info(
+                                "ChEMBL 命中: molecule.json %s（已校验）",
+                                fk,
+                            )
+                            return dict(row), True
+
+            rows_ic, ok_ic = self._try_molecule_filter(
+                "pref_icontains",
+                {"pref_name__icontains": pn},
+                id_prev,
+            )
+            if not ok_ic:
+                return {}, False
+            if rows_ic:
+                for row in rows_ic:
+                    if _row_pref_name_matches_icontains(row, pn):
+                        logger.info(
+                            "ChEMBL 命中: molecule.json pref_name__icontains（已校验）"
+                        )
+                        return dict(row), True
+
+            logger.warning(
+                f"ChEMBL 按药名未命中 drug/molecule 各层 | drug_name={id_prev!r}"
+            )
+
+        if sm:
+            mol_s, ok_s = self._get_molecule_by_smiles_connectivity(sm)
+            if ok_s and mol_s:
+                logger.info("ChEMBL 命中: SMILES connectivity/兜底")
+            return mol_s, ok_s
+
+        return None, True
+
+    def get_molecule_by_pref_name(self, pref_name: str) -> Tuple[Optional[Dict[str, Any]], bool]:
+        """
+        按药名解析分子；等价于 ``get_drug_by_name(pref_name, smiles=None)``（不走 SMILES 兜底）。
+        """
+        return self.get_drug_by_name(pref_name, smiles=None)
+
+    def get_molecule_by_smiles(self, smiles: str) -> Tuple[Optional[Dict[str, Any]], bool]:
+        """仅按 SMILES 查分子（connectivity / iexact / flexmatch）。"""
+        return self._get_molecule_by_smiles_connectivity(smiles)
 
     def get_molecule_by_chembl_id(
         self, chembl_id: str
