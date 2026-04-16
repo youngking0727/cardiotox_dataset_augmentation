@@ -1,0 +1,149 @@
+# Path B 证据保留与 M3/M5 共用关键词（大小写不敏感匹配在代码中处理）
+direct_qt_terms:
+  - QT
+  - QTc
+  - TQT
+  - long QT
+  - torsade
+  - torsades de pointes
+  - TdP
+  - proarrhythmia
+  - proarrhythmic
+  - FPD
+  - FPDc
+  - APD
+  - APD90
+  - APD50
+  - field potential duration
+  - field potential duration corrected
+  - action potential duration
+  - repolarization prolongation
+  - ventricular repolarization
+  - hiPSC-CM
+  - MEA
+  - cardiac arrhythmia
+
+mechanistic_terms:
+  - hERG
+  - IKr
+  - KCNH2
+  - blocker
+  - blockade
+  - cardiac ion channel
+  - potassium channel
+  - ion channel
+  - long QT pharmacophore
+  - cardiac ion
+
+secondary_terms:
+  - secondary pharmacology
+  - safety pharmacology
+  - off-target
+  - ADR
+  - adverse drug reaction
+  - target-ADR
+  - target adr
+  - adverse event association
+  - cardiotoxicity risk
+  - safety panel
+  - liability panel
+  - AC50
+
+# Direct QT 相关 assay / type 关键词（与 standard_type、assay 文本一起匹配）
+direct_qt_assay_keywords:
+  - FPD
+  - FPDc
+  - APD
+  - APD90
+  - APD50
+  - QT
+  - QTc
+  - TQT
+  - field potential
+  - action potential
+  - hiPSC-CM
+  - MEA
+  - repolarization
+  - ventricular repolarization
+
+# 机制测量 type（需与 hERG/IKr 语境同时命中才算 priority_2）
+mechanistic_measurement_types:
+  - IC50
+  - Ki
+  - Kd
+  - EC50
+  - AC50
+  - PIC50
+  - PIKI
+  - PKD
+  - INHIBITION
+  - INHIBITOR
+  - PERCENT INHIBITION
+  - KON
+  - KOFF
+  - RESIDENCE TIME
+
+mechanism_context_keywords:
+  - hERG
+  - IKr
+  - KCNH2
+  - potassium channel
+  - ion channel
+  - long QT pharmacophore
+  - cardiac ion channel
+  - ventricular repolarization
+  - QT
+
+# priority_3：次药理学语境（需与心脏/QT 风险词共现）
+secondary_pharm_context_keywords:
+  - secondary pharmacology
+  - safety pharmacology
+  - off-target
+  - adverse
+  - adr
+  - cardiotoxicity
+  - liability
+  - safety panel
+
+cardiac_risk_bridge_keywords:
+  - QT
+  - arrhythmia
+  - cardiac
+  - heart
+  - proarrhythmia
+  - torsade
+  - cardiotoxicity
+  - repolarization
+  - ion channel
+
+# standard_type 归一化别名 → 规范 token
+type_normalization_map:
+  IC50: IC50
+  Ki: Ki
+  Kd: Kd
+  EC50: EC50
+  AC50: AC50
+  PIC50: PIC50
+  PIKI: PIKI
+  PKD: PKD
+  INHIBITION: Inhibition
+  PERCENT INHIBITION: Percent Inhibition
+  percent inhibition: Percent Inhibition
+  "% inhibition": Percent Inhibition
+  KON: kon
+  KOFF: koff
+  IC90: IC90
+  IC95: IC95
+
+clinical_direct_qt_keywords:
+  - QT
+  - QT prolongation
+  - QTc
+  - long QT
+  - torsade
+  - torsades
+  - TdP
+  - arrhythmia
+  - ventricular tachycardia
+  - proarrhythmia
+  - ventricular fibrillation

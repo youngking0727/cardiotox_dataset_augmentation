@@ -177,14 +177,16 @@ class EvidenceBundleAssembler:
                 "etox": ExternalDBFlags(present=False),
                 "dilirank": ExternalDBFlags(present=False)
             },
-            fda_label_warnings=[]
+            fda_label_warnings=[],
+            direct_qt_clinical_hit=False,
+            clinicaltrials_query_names_used=[],
         )
 
     def _empty_literature(self) -> LiteratureEvidence:
         """返回空的文献证据对象"""
         return LiteratureEvidence(
             pubmed_articles=[],
-            patents=[]
+            patents=[],
         )
 
 

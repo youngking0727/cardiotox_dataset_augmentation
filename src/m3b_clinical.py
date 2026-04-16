@@ -15,6 +15,7 @@ from schemas import (
 from utils.cache import get_global_cache
 from utils.chembl_client import ChEMBLClient
 from utils.clinicaltrials_client import ClinicalTrialsClient
+from rules.cardiotox_evidence_rules import clinical_text_has_direct_qt
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +84,7 @@ class ClinicalStatusRetriever:
         *,
         refresh_chembl_clinical: bool = False,
         clinicaltrials_query_name: Optional[str] = None,
+        path_b_clinicaltrials_names: Optional[List[str]] = None,
     ) -> ClinicalEvidence:
         """
         检索临床状态证据。
@@ -91,6 +93,7 @@ class ClinicalStatusRetriever:
             ClinicalTrials；未传入则用 ``pref_name`` 检索（若有）。
         :param clinicaltrials_query_name: 若设置（如路径 B 父药名），**直接**作为 ClinicalTrials 检索词，
             不与子分子 ``pref_name`` 做一致性校验（相似扩展化合物通常不是同一药品名）。
+        :param path_b_clinicaltrials_names: Path B 时对子/父多个名称分别检索试验并融合（去重 nct_id）。
         :param refresh_chembl_clinical: 为 True 时删除 ``chembl_clinical_{id}`` 缓存后再拉 ChEMBL drug。
         """
         logger.info("检索临床状态数据: %s", chembl_id)
@@ -110,42 +113,68 @@ class ClinicalStatusRetriever:
 
         clinical_trials: List[ClinicalTrialInfo] = []
         ct_query_name: Optional[str] = None
+        ct_names_used: List[str] = []
         user_dn = (drug_name or "").strip() or None
         pref_empty = not (pref_name or "").strip()
 
-        ct_override = (clinicaltrials_query_name or "").strip()
-        if ct_override:
-            ct_query_name = ct_override
-            _ov = (
-                f"M3B ClinicalTrials：使用 clinicaltrials_query_name={ct_query_name!r} "
-                f"（路径 B 以父药锚定，与子分子 pref_name 无关）"
-            )
-            logger.info(_ov)
-            print(_ov, file=sys.stderr, flush=True)
-        elif user_dn is not None:
-            # 路径 B 相似分子等：ChEMBL 常无 pref_name，此时用调用方名称（多为父药 DIQTA drug_name）查试验
-            if pref_empty:
-                ct_query_name = user_dn
-                _fb = (
-                    f"M3B ClinicalTrials：子分子无 pref_name，使用传入 drug_name={user_dn!r}"
+        uniq_pb: List[str] = []
+        if path_b_clinicaltrials_names is not None:
+            seen_pb: set[str] = set()
+            for raw in path_b_clinicaltrials_names:
+                s = (raw or "").strip()
+                if not s:
+                    continue
+                key = _normalize_label(s)
+                if key in seen_pb:
+                    continue
+                seen_pb.add(key)
+                uniq_pb.append(s)
+            if uniq_pb:
+                for nm in uniq_pb:
+                    batch = self._retrieve_from_clinicaltrials(nm)
+                    clinical_trials.extend(batch)
+                clinical_trials = self._dedupe_trials(clinical_trials)
+                ct_names_used = list(uniq_pb)
+                _ov = (
+                    f"M3B Path B ClinicalTrials：融合检索 names={ct_names_used!r}，"
+                    f"去重后 trials={len(clinical_trials)}"
                 )
-                logger.info(_fb)
-                print(_fb, file=sys.stderr, flush=True)
-            elif _normalize_label(user_dn) != _normalize_label(pref_name):
-                _skip = (
-                    f"M3B 跳过 ClinicalTrials：传入 drug_name 与 ChEMBL pref_name 不一致 | "
-                    f"drug_name={user_dn!r} pref_name={pref_name!r}"
+                logger.info(_ov)
+                print(_ov, file=sys.stderr, flush=True)
+
+        if not uniq_pb:
+            ct_override = (clinicaltrials_query_name or "").strip()
+            if ct_override:
+                ct_query_name = ct_override
+                _ov = (
+                    f"M3B ClinicalTrials：使用 clinicaltrials_query_name={ct_query_name!r} "
+                    f"（路径 B 以父药锚定，与子分子 pref_name 无关）"
                 )
-                logger.warning(_skip)
-                print(_skip, file=sys.stderr, flush=True)
+                logger.info(_ov)
+                print(_ov, file=sys.stderr, flush=True)
+            elif user_dn is not None:
+                if pref_empty:
+                    ct_query_name = user_dn
+                    _fb = (
+                        f"M3B ClinicalTrials：子分子无 pref_name，使用传入 drug_name={user_dn!r}"
+                    )
+                    logger.info(_fb)
+                    print(_fb, file=sys.stderr, flush=True)
+                elif _normalize_label(user_dn) != _normalize_label(pref_name):
+                    _skip = (
+                        f"M3B 跳过 ClinicalTrials：传入 drug_name 与 ChEMBL pref_name 不一致 | "
+                        f"drug_name={user_dn!r} pref_name={pref_name!r}"
+                    )
+                    logger.warning(_skip)
+                    print(_skip, file=sys.stderr, flush=True)
+                else:
+                    ct_query_name = user_dn
+            elif pref_name:
+                ct_query_name = pref_name
             else:
-                ct_query_name = user_dn
-        elif pref_name:
-            ct_query_name = pref_name
-        else:
-            _skip = "M3B 跳过 ClinicalTrials：无 pref_name 且未传入 drug_name"
-            logger.info(_skip)
-            print(_skip, file=sys.stderr, flush=True)
+                _skip = "M3B 跳过 ClinicalTrials：无 pref_name 且未传入 drug_name"
+                logger.info(_skip)
+                print(_skip, file=sys.stderr, flush=True)
 
         if refresh_chembl_clinical:
             ck = f"chembl_clinical_{chembl_id}"
@@ -156,9 +185,11 @@ class ClinicalStatusRetriever:
 
         chembl_clinical = self._retrieve_from_chembl(chembl_id)
 
-        if ct_query_name:
+        if ct_query_name and not uniq_pb:
             trials = self._retrieve_from_clinicaltrials(ct_query_name)
             clinical_trials.extend(trials)
+            if not ct_names_used:
+                ct_names_used = [ct_query_name]
 
         external_db_flags = self._get_external_db_flags(chembl_id)
         fda_warnings = self._get_fda_warnings(chembl_id)
@@ -172,15 +203,24 @@ class ClinicalStatusRetriever:
                 "多因 max_phase 曾为字符串或未统一推导）"
             )
 
+        withdrawn_info = chembl_clinical.get("withdrawn", WithdrawalInfo(flag=False))
+        direct_qt_hit = self._compute_direct_qt_clinical_hit(
+            withdrawn_info,
+            clinical_trials,
+            fda_warnings,
+        )
+
         return ClinicalEvidence(
             max_phase=max_phase_i,
             approved=approved,
-            withdrawn=chembl_clinical.get("withdrawn", WithdrawalInfo(flag=False)),
+            withdrawn=withdrawn_info,
             black_box_warning=chembl_clinical.get("black_box_warning"),
             clinical_trials=clinical_trials,
             external_db_flags=external_db_flags,
             fda_label_warnings=fda_warnings,
             drug_info_status=chembl_clinical.get("drug_info_status"),
+            direct_qt_clinical_hit=direct_qt_hit,
+            clinicaltrials_query_names_used=ct_names_used,
         )
 
     def _retrieve_from_chembl(self, chembl_id: str) -> Dict[str, Any]:
@@ -219,6 +259,32 @@ class ClinicalStatusRetriever:
         except Exception as e:
             logger.warning("从ChEMBL获取临床状态失败: %s, 错误: %s", chembl_id, e)
             return {"drug_info_status": "request_failed"}
+
+    @staticmethod
+    def _dedupe_trials(trials: List[ClinicalTrialInfo]) -> List[ClinicalTrialInfo]:
+        seen: Dict[str, ClinicalTrialInfo] = {}
+        for t in trials:
+            if t.nct_id not in seen:
+                seen[t.nct_id] = t
+        return list(seen.values())
+
+    @staticmethod
+    def _compute_direct_qt_clinical_hit(
+        withdrawn: Any,
+        trials: List[ClinicalTrialInfo],
+        fda_warnings: List[str],
+    ) -> bool:
+        texts: List[str] = []
+        if withdrawn is not None and getattr(withdrawn, "reason", None):
+            texts.append(str(withdrawn.reason))
+        for tr in trials:
+            texts.append(tr.title)
+            if tr.summary:
+                texts.append(tr.summary)
+        texts.extend(fda_warnings)
+        if not texts:
+            return False
+        return clinical_text_has_direct_qt(*texts)
 
     def _retrieve_from_clinicaltrials(self, drug_name: str) -> List[ClinicalTrialInfo]:
         try:

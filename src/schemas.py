@@ -69,6 +69,14 @@ class BioactivityMeasurement(BaseModel):
     assay_description: Optional[str] = None
     document_chembl_id: Optional[str] = None
     confidence_score: Optional[int] = Field(None, ge=0, le=9)
+    normalized_type: Optional[str] = Field(None, description="归一化后的测量类型")
+    evidence_bucket: Optional[str] = Field(
+        None,
+        description="direct_qt / mechanistic_herg_ikr / secondary_pharmacology / unknown",
+    )
+    mechanistic_context_hit: bool = False
+    direct_qt_context_hit: bool = False
+    secondary_pharmacology_context_hit: bool = False
 
 
 class TargetBioactivity(BaseModel):
@@ -76,6 +84,10 @@ class TargetBioactivity(BaseModel):
     target: str
     target_chembl_id: str
     measurements: List[BioactivityMeasurement]
+    supplemental_retention_rows: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="无法数值化但参与 Path B 保留判断的原始 activity 摘要",
+    )
 
 
 # M3-B: 临床状态
@@ -136,6 +148,14 @@ class ClinicalEvidence(BaseModel):
             "null 表示未写入状态位，不等同于「无临床信息」。"
         ),
     )
+    direct_qt_clinical_hit: bool = Field(
+        False,
+        description="撤市理由/试验标题摘要/FDA 警告等是否含直接 QT/心律失常语义（Path B 保留与 M5 共用）",
+    )
+    clinicaltrials_query_names_used: List[str] = Field(
+        default_factory=list,
+        description="Path B 双路 ClinicalTrials 检索使用的名称（去重后）",
+    )
 
 
 # M3-C: 文献证据
@@ -149,6 +169,11 @@ class PubMedArticle(BaseModel):
     relevance_keywords_hit: List[str]
     molecule_mentioned: bool
     publication_year: Optional[int] = None
+    relevance_bucket: Optional[str] = Field(
+        None,
+        description="priority_1_direct_qt | priority_2_mechanistic_herg_ikr | priority_3_secondary_pharmacology | irrelevant",
+    )
+    relevance_reason_codes: List[str] = Field(default_factory=list)
 
 
 class PatentInfo(BaseModel):
@@ -163,6 +188,11 @@ class LiteratureEvidence(BaseModel):
     """文献证据"""
     pubmed_articles: List[PubMedArticle]
     patents: List[PatentInfo]
+    priority_1_article_count: int = 0
+    priority_2_article_count: int = 0
+    priority_3_article_count: int = 0
+    top_relevance_bucket: Optional[str] = None
+    top_relevance_reason_codes: List[str] = Field(default_factory=list)
 
 
 # M4: 证据包
@@ -191,6 +221,18 @@ class EvidenceDensity(BaseModel):
         ...,
         description="insufficient：难继续推理；usable：可入库/可推理；strong：多维度命中",
     )
+
+
+class RetentionJudgmentDetail(BaseModel):
+    """Path B：是否保留进入扩充集（与标签判定解耦）"""
+
+    should_keep: bool
+    evidence_priority: Optional[str] = Field(
+        None,
+        description="priority_1_direct_qt | priority_2_mechanistic_herg_ikr | priority_3_secondary_pharmacology",
+    )
+    reason_codes: List[str] = Field(default_factory=list)
+    notes: str = ""
 
 
 class LabelJudgmentDetail(BaseModel):

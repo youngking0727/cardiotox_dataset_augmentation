@@ -18,6 +18,13 @@ from schemas import (
     TargetBioactivity,
     LabelJudgmentDetail,
     EvidenceSufficiencyTier,
+    RetentionJudgmentDetail,
+)
+from rules.cardiotox_evidence_rules import (
+    EVIDENCE_PRIORITY_1,
+    EVIDENCE_PRIORITY_2,
+    EVIDENCE_PRIORITY_3,
+    priority_rank,
 )
 from m3b_clinical import ClinicalStatusRetriever
 from m3c_literature import LiteratureRetriever
@@ -124,6 +131,84 @@ class EvidenceSufficiencyJudge:
             patent_count=patent_count,
             total_score=total_score,
             sufficiency_tier=tier,
+        )
+
+    def judge_retention_for_path_b(
+        self,
+        bioactivity_evidence: Dict[str, TargetBioactivity],
+        clinical_evidence: ClinicalEvidence,
+        literature_evidence: LiteratureEvidence,
+    ) -> RetentionJudgmentDetail:
+        """
+        Path B：是否因 priority_1/2/3 证据保留（与 judge_label 解耦）。
+        综合 bioactivity + clinical + literature。
+        """
+        candidates: List[tuple[str, str]] = []
+
+        if getattr(clinical_evidence, "direct_qt_clinical_hit", False):
+            candidates.append((EVIDENCE_PRIORITY_1, "clinical_direct_qt_semantics"))
+
+        for tgt, tb in (bioactivity_evidence or {}).items():
+            for m in tb.measurements:
+                if m.direct_qt_context_hit:
+                    candidates.append((EVIDENCE_PRIORITY_1, f"bio:{tgt}:direct_qt_type_or_assay"))
+                if m.mechanistic_context_hit and tgt == "hERG":
+                    candidates.append((EVIDENCE_PRIORITY_2, "bio:hERG:mechanistic_assay"))
+                if m.secondary_pharmacology_context_hit:
+                    candidates.append((EVIDENCE_PRIORITY_3, "bio:secondary_pharmacology"))
+
+            for row in tb.supplemental_retention_rows:
+                cls_blob = row.get("classification") or {}
+                pg = cls_blob.get("priority_guess")
+                if pg == EVIDENCE_PRIORITY_1:
+                    candidates.append((EVIDENCE_PRIORITY_1, "bio:supplemental:priority_1"))
+                elif pg == EVIDENCE_PRIORITY_2:
+                    candidates.append((EVIDENCE_PRIORITY_2, "bio:supplemental:priority_2"))
+                elif pg == EVIDENCE_PRIORITY_3:
+                    candidates.append((EVIDENCE_PRIORITY_3, "bio:supplemental:priority_3"))
+
+        if literature_evidence.priority_1_article_count > 0:
+            candidates.append((EVIDENCE_PRIORITY_1, "literature:priority_1_article_count"))
+        if literature_evidence.priority_2_article_count > 0:
+            candidates.append((EVIDENCE_PRIORITY_2, "literature:priority_2_article_count"))
+        if literature_evidence.priority_3_article_count > 0:
+            candidates.append((EVIDENCE_PRIORITY_3, "literature:priority_3_article_count"))
+
+        for art in literature_evidence.pubmed_articles:
+            b = art.relevance_bucket
+            if b == EVIDENCE_PRIORITY_1:
+                candidates.append((EVIDENCE_PRIORITY_1, f"literature:pmid:{art.pmid}"))
+            elif b == EVIDENCE_PRIORITY_2:
+                candidates.append((EVIDENCE_PRIORITY_2, f"literature:pmid:{art.pmid}"))
+            elif b == EVIDENCE_PRIORITY_3:
+                candidates.append((EVIDENCE_PRIORITY_3, f"literature:pmid:{art.pmid}"))
+
+        if not candidates:
+            return RetentionJudgmentDetail(
+                should_keep=False,
+                evidence_priority=None,
+                reason_codes=[],
+                notes="未命中 priority_1/2/3 任一证据源。",
+            )
+
+        best_prio: Optional[str] = None
+        best_r = -1
+        for prio, _code in candidates:
+            r = priority_rank(prio)
+            if r > best_r:
+                best_r = r
+                best_prio = prio
+        reason_codes = [c for p, c in candidates if p == best_prio]
+
+        notes = (
+            f"最高优先级={best_prio}，共 {len(candidates)} 条命中线索；"
+            "保留用于数据集扩充与后续推理，不等同于最终 DIQT 标签。"
+        )
+        return RetentionJudgmentDetail(
+            should_keep=True,
+            evidence_priority=best_prio,
+            reason_codes=reason_codes,
+            notes=notes,
         )
 
     def judge_label_detailed(

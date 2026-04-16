@@ -299,14 +299,26 @@ def process_path_b(
         child_pref = (str(_mol.get("pref_name") or "")).strip()
     parent_dn = (parent_drug_name or "").strip()
     fallback_name = parent_dn or child_pref or chembl_id
+
+    ct_list: List[str] = []
+    for nm in (child_pref, parent_dn):
+        s = (nm or "").strip()
+        if s and s not in ct_list:
+            ct_list.append(s)
+
     clinical = clinical_retriever.retrieve(
         chembl_id,
         drug_name=fallback_name,
-        clinicaltrials_query_name=parent_dn or None,
+        path_b_clinicaltrials_names=ct_list if ct_list else None,
+        clinicaltrials_query_name=None if ct_list else (parent_dn or None),
     )
     literature = literature_retriever.retrieve(
         chembl_id,
         fallback_name,
+        max_pubmed=40,
+        path_b=True,
+        child_pref_name=child_pref,
+        parent_drug_name=parent_dn,
         pubmed_query_name=parent_dn or None,
     )
 
@@ -320,15 +332,23 @@ def process_path_b(
         logger.warning(f"取数不完整，暂不判定证据不足: {chembl_id}")
         return None, "retrieval_incomplete"
 
+    retention = sufficiency_judge.judge_retention_for_path_b(
+        bioactivity, clinical, literature
+    )
+    if not retention.should_keep:
+        logger.info(f"Path B 证据不足（无 priority_1/2/3），丢弃: {chembl_id}")
+        return None, "evidence_insufficient"
+
     evidence_density = sufficiency_judge.compute_evidence_density(
         bioactivity, clinical, literature
     )
 
     label_value, label_confidence = sufficiency_judge.judge_label(bioactivity, clinical)
-
+    label_source = "evidence_derived"
     if label_value is None:
-        logger.info(f"证据不足，丢弃分子: {chembl_id}")
-        return None, "evidence_insufficient"
+        label_value = "undetermined"
+        label_confidence = None
+        label_source = "evidence_retained_but_not_final_labeled"
 
     conflict_result = conflict_detector.detect(bioactivity, clinical, literature)
     conflicts = None
@@ -343,7 +363,7 @@ def process_path_b(
         smiles=smiles,
         source_path="B_similarity_expanded",
         label_value=label_value,
-        label_source="evidence_derived",
+        label_source=label_source,
         label_confidence=label_confidence,
         parent_diqta_molecules=[parent_chembl_id],
         tanimoto_to_parents=[tanimoto],
@@ -358,8 +378,34 @@ def process_path_b(
     bundle_dict = json.loads(bundle.model_dump_json())
     meta = bundle_dict.setdefault("metadata", {})
     meta["screening_status"] = "kept"
+    meta["retained_by_path_b_rule"] = True
+    meta["evidence_priority"] = retention.evidence_priority
+    meta["retention_reason_codes"] = retention.reason_codes
+    meta["retention_notes"] = retention.notes
     if parent_drug_name:
         meta["parent_drug_name"] = parent_drug_name
+    meta["top_literature_bucket"] = literature.top_relevance_bucket
+    meta["priority_1_article_count"] = literature.priority_1_article_count
+    meta["priority_2_article_count"] = literature.priority_2_article_count
+    meta["priority_3_article_count"] = literature.priority_3_article_count
+
+    has_herg = bool(
+        bioactivity.get("hERG") and bioactivity["hERG"].measurements
+    )
+    logger.info(
+        "PATH_B_DECISION | chembl_id={} | parent={} | keep=True | priority={} | label={} | "
+        "reasons={} | has_hERG_measurement={} | p1={} p2={} p3={} | direct_qt_clinical_hit={} | status=kept",
+        chembl_id,
+        parent_chembl_id,
+        retention.evidence_priority,
+        label_value,
+        retention.reason_codes,
+        has_herg,
+        literature.priority_1_article_count,
+        literature.priority_2_article_count,
+        literature.priority_3_article_count,
+        getattr(clinical, "direct_qt_clinical_hit", False),
+    )
     return bundle_dict, "kept"
 
 

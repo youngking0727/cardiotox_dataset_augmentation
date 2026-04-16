@@ -1,7 +1,10 @@
 # 核心依赖
 rdkit>=2023.09.1
 chembl-webresource-client>=0.10.9
-pkasolver>=0.1.1
+# pKa：mayrf/pkasolver 主分支无旧版 PkaCalculator；query 后端需 torch / torch-geometric；query.py 顶层依赖 cairosvg、svgutils（缺则无法 import query，pKa 恒为 null）
+git+https://github.com/mayrf/pkasolver.git
+svgutils>=0.3.4
+cairosvg>=2.7.0
 biopython>=1.81
 requests>=2.31.0
 pandas>=2.0.0
