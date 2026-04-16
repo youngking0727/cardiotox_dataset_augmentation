@@ -17,7 +17,79 @@
         "data/output/evidence_bundles.jsonl"
       ],
       "env": {
-        "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/src"
+        "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/src",
+        "PYTHONUNBUFFERED": "1"
+      }
+    },
+    {
+      "name": "调试Pipeline路径A (仅DIQTA原始)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/run_pipeline.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "python": "/AIRvePFS/dair/conda_envs/cad_new/bin/python",
+      "args": [
+        "--path-a-only",
+        "--sample",
+        "3",
+        "--diqta",
+        "data/DIQTA阴性样本为主划分.xlsx",
+        "--output",
+        "data/output/evidence_bundles_path_a.jsonl",
+        "--config",
+        "config/pipeline.yaml"
+      ],
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/src",
+        "PYTHONUNBUFFERED": "1"
+      }
+    },
+    {
+      "name": "调试Pipeline路径B (仅相似扩展)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/run_pipeline.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "python": "/AIRvePFS/dair/conda_envs/cad_new/bin/python",
+      "args": [
+        "--path-b-only",
+        "--sample",
+        "2",
+        "--diqta",
+        "data/DIQTA阴性样本为主划分.xlsx",
+        "--output",
+        "data/output/evidence_bundles_path_b.jsonl",
+        "--config",
+        "config/pipeline.yaml"
+      ],
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/src",
+        "PYTHONUNBUFFERED": "1"
+      }
+    },
+    {
+      "name": "调试Pipeline完整流程 (A+B 小样本)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/run_pipeline.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "python": "/AIRvePFS/dair/conda_envs/cad_new/bin/python",
+      "args": [
+        "--sample",
+        "2",
+        "--diqta",
+        "data/DIQTA阴性样本为主划分.xlsx",
+        "--output",
+        "data/output/evidence_bundles_AplusB_smoke.jsonl",
+        "--config",
+        "config/pipeline.yaml"
+      ],
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/src",
+        "PYTHONUNBUFFERED": "1"
       }
     },
     {

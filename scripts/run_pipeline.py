@@ -228,15 +228,14 @@ def process_path_a(molecule: Dict[str, Any],
     # 获取理化性质
     physchem_props = physchem_calc.get_full_properties(chembl_id=chembl_id, smiles=smiles)
 
-    # 获取靶点活性
-    bioactivity, _ = bioactivity_retriever.retrieve(chembl_id)
+    # 获取靶点活性（retrieve 只返回 dict，勿对 dict 解包）
+    bioactivity = bioactivity_retriever.retrieve(chembl_id)
 
-    # 获取临床状态
+    # 获取临床状态 / 文献（路径 A：不传 clinicaltrials_query_name / pubmed_query_name，
+    # M3B/M3C 使用 DIQTA drug_name 与 ChEMBL pref_name 的一致性校验或 pref 回退）
     drug_name = molecule.get("name", molecule.get("pref_name", chembl_id))
     clinical = clinical_retriever.retrieve(chembl_id, drug_name=drug_name)
-
-    # 获取文献
-    literature = literature_retriever.retrieve(chembl_id, drug_name)
+    literature = literature_retriever.retrieve(chembl_id, drug_name=drug_name)
 
     # 组装证据包
     bundle = assembler.assemble(
@@ -291,18 +290,25 @@ def process_path_b(
     _mol, mol_ok = chembl_client.get_molecule_by_chembl_id(chembl_id)
     # 相似度检索已完成；理化补全（ChEMBL → RDKit）
     physchem_props = physchem_calc.get_full_properties(chembl_id=chembl_id, smiles=smiles)
-    bioactivity, bio_ok = bioactivity_retriever.retrieve(chembl_id)
-    # 临床/文献查询名：优先子分子 pref_name，其次父行 DIQTA_Chembl.json 的 drug_name
+    bioactivity = bioactivity_retriever.retrieve(chembl_id)
+    bio_ok = True
+    # 路径 B：相似分子不是「同一药品」，ClinicalTrials/PubMed 以父药（DIQTA）为锚；
+    # M3A 仍按子 chembl_id 拉活性；M3B drug 记录仍按子 chembl_id。
     child_pref = ""
     if _mol and isinstance(_mol, dict):
         child_pref = (str(_mol.get("pref_name") or "")).strip()
-    drug_name_for_queries = (
-        child_pref
-        or (parent_drug_name or "").strip()
-        or chembl_id
+    parent_dn = (parent_drug_name or "").strip()
+    fallback_name = parent_dn or child_pref or chembl_id
+    clinical = clinical_retriever.retrieve(
+        chembl_id,
+        drug_name=fallback_name,
+        clinicaltrials_query_name=parent_dn or None,
     )
-    clinical = clinical_retriever.retrieve(chembl_id, drug_name=drug_name_for_queries)
-    literature = literature_retriever.retrieve(chembl_id, drug_name_for_queries)
+    literature = literature_retriever.retrieve(
+        chembl_id,
+        fallback_name,
+        pubmed_query_name=parent_dn or None,
+    )
 
     retrieval_incomplete = (
         not mol_ok
@@ -362,7 +368,9 @@ def run_pipeline(diqta_file: str = "data/DIQTA阴性样本为主划分.xlsx",
                 config_file: str = "config/pipeline.yaml",
                 max_molecules: Optional[int] = None,
                 sample_size: int = 5,
-                diqta_chembl_json: str = "data/output/DIQTA_Chembl.json"):
+                diqta_chembl_json: str = "data/output/DIQTA_Chembl.json",
+                path_a_only: bool = False,
+                path_b_only: bool = False):
     """
     运行完整的数据处理流程
 
@@ -373,14 +381,24 @@ def run_pipeline(diqta_file: str = "data/DIQTA阴性样本为主划分.xlsx",
         max_molecules: 最大处理分子数（用于测试）
         sample_size: 样本数量（用于快速测试）
         diqta_chembl_json: 路径 A 结束后写入的父分子表（含 drug_name），默认与 evidence 同目录
+        path_a_only: 仅跑路径 A（DIQTA 原始分子证据包）
+        path_b_only: 仅跑路径 B（相似扩展）；仍加载 DIQTA、解析 ChEMBL ID，并做父分子 drug_name 补全后跑 M1→相似分子流水线
     """
     # 加载配置
     config = load_config(config_file)
     apply_ncbi_settings_from_config(config)
     setup_logging(config.get("logging", {}).get("file"))
 
+    if path_a_only and path_b_only:
+        logger.error("不能同时指定 path_a_only 与 path_b_only")
+        return
+
     logger.info("=" * 60)
     logger.info("开始心脏毒性数据集增强流程")
+    if path_a_only:
+        logger.info("模式: 仅路径 A（DIQTA 原始）")
+    elif path_b_only:
+        logger.info("模式: 仅路径 B（相似扩展，跳过路径 A 组装）")
     logger.info("=" * 60)
 
     # 初始化组件
@@ -442,124 +460,130 @@ def run_pipeline(diqta_file: str = "data/DIQTA阴性样本为主划分.xlsx",
     output_path = Path(__file__).parent.parent / output_file
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # 处理路径A：DIQTA原始分子
-    logger.info("-" * 40)
-    logger.info("处理路径A: DIQTA原始分子")
-    logger.info("-" * 40)
-
     results = []
     discarded = []
     retry_candidates: List[Dict[str, Any]] = []
 
-    for i, molecule in enumerate(tqdm(diqta_molecules, desc="路径A处理")):
-        try:
-            bundle = process_path_a(
-                molecule=molecule,
-                assembler=assembler,
-                physchem_calc=physchem_calc,
-                bioactivity_retriever=bioactivity_retriever,
-                clinical_retriever=clinical_retriever,
-                literature_retriever=literature_retriever
-            )
+    if not path_b_only:
+        logger.info("-" * 40)
+        logger.info("处理路径A: DIQTA原始分子")
+        logger.info("-" * 40)
 
-            if bundle:
-                results.append(bundle)
-            else:
+        for i, molecule in enumerate(tqdm(diqta_molecules, desc="路径A处理")):
+            try:
+                bundle = process_path_a(
+                    molecule=molecule,
+                    assembler=assembler,
+                    physchem_calc=physchem_calc,
+                    bioactivity_retriever=bioactivity_retriever,
+                    clinical_retriever=clinical_retriever,
+                    literature_retriever=literature_retriever
+                )
+
+                if bundle:
+                    results.append(bundle)
+                else:
+                    discarded.append({
+                        "chembl_id": molecule.get("chembl_id"),
+                        "reason": "failed_to_process"
+                    })
+
+            except Exception as e:
+                logger.error(f"处理分子失败: {molecule.get('chembl_id')}, 错误: {e}")
                 discarded.append({
                     "chembl_id": molecule.get("chembl_id"),
-                    "reason": "failed_to_process"
+                    "reason": str(e)
                 })
+    else:
+        logger.info("path_b_only=True：跳过路径 A（不生成 DIQTA 原始证据包）")
 
-        except Exception as e:
-            logger.error(f"处理分子失败: {molecule.get('chembl_id')}, 错误: {e}")
-            discarded.append({
-                "chembl_id": molecule.get("chembl_id"),
-                "reason": str(e)
-            })
-
-    # 路径 A 完成后：父分子 drug_name（ChEMBL pref_name 优先）并落盘，路径 B 从此读入逻辑上的「真值」
+    # 父分子 drug_name（ChEMBL pref_name 优先）并落盘；路径 B 依赖 molecule['drug_name']
     enrich_drug_names_from_chembl(diqta_molecules, chembl_client)
     diqta_chembl_path = Path(__file__).parent.parent / diqta_chembl_json
     save_diqta_chembl_json(diqta_chembl_path, diqta_molecules, diqta_file)
 
-    # 处理路径B：相似性扩展分子（相似度 → 理化补全 在 process_path_b 内顺序执行）
-    logger.info("-" * 40)
-    logger.info("处理路径B: 相似性扩展分子")
-    logger.info("-" * 40)
+    if path_a_only:
+        logger.info("path_a_only=True：跳过路径 B，直接保存结果")
+        # 仅路径 A 时 results 只有 A 的包；进入统一写盘逻辑
+    else:
+        # 处理路径B：相似性扩展分子（相似度 → 理化补全 在 process_path_b 内顺序执行）
+        logger.info("-" * 40)
+        logger.info("处理路径B: 相似性扩展分子")
+        logger.info("-" * 40)
 
-    for molecule in tqdm(diqta_molecules, desc="路径B处理"):
-        try:
-            chembl_id = molecule.get("chembl_id")
-            smiles = molecule.get("smiles")
+        for molecule in tqdm(diqta_molecules, desc="路径B处理"):
+            try:
+                chembl_id = molecule.get("chembl_id")
+                smiles = molecule.get("smiles")
 
-            if not chembl_id or not smiles:
-                continue
+                if not chembl_id or not smiles:
+                    continue
 
-            # 相似性检索
-            similarity_result = similarity_retriever.retrieve(
-                query_smiles=smiles,
-                query_chembl_id=chembl_id,
-                diqta_smiles=diqta_smiles
-            )
-
-            if not similarity_result.query_similarity_ok:
-                logger.warning(
-                    f"取数不完整，暂不判定证据不足: {chembl_id} (similarity.json)"
+                # 相似性检索
+                similarity_result = similarity_retriever.retrieve(
+                    query_smiles=smiles,
+                    query_chembl_id=chembl_id,
+                    diqta_smiles=diqta_smiles
                 )
-                retry_candidates.append({
-                    "chembl_id": chembl_id,
-                    "context": "path_b_parent_similarity",
-                    "screening_status": "retrieval_incomplete",
-                    "reason": "similarity.json request failed",
-                })
-                continue
 
-            # 处理每个相似分子
-            for similar in similarity_result.similar_molecules:
-                try:
-                    similar_data = {
-                        "chembl_id": similar.chembl_id,
-                        "smiles": similar.smiles,
-                        "already_in_diqta": similar.already_in_diqta
-                    }
-
-                    bundle, pb_status = process_path_b(
-                        similar_molecule=similar_data,
-                        parent_chembl_id=chembl_id,
-                        tanimoto=similar.tanimoto,
-                        assembler=assembler,
-                        physchem_calc=physchem_calc,
-                        bioactivity_retriever=bioactivity_retriever,
-                        clinical_retriever=clinical_retriever,
-                        literature_retriever=literature_retriever,
-                        sufficiency_judge=sufficiency_judge,
-                        conflict_detector=conflict_detector,
-                        chembl_client=chembl_client,
-                        parent_drug_name=molecule.get("drug_name"),
+                if not similarity_result.query_similarity_ok:
+                    logger.warning(
+                        f"取数不完整，暂不判定证据不足: {chembl_id} (similarity.json)"
                     )
+                    retry_candidates.append({
+                        "chembl_id": chembl_id,
+                        "context": "path_b_parent_similarity",
+                        "screening_status": "retrieval_incomplete",
+                        "reason": "similarity.json request failed",
+                    })
+                    continue
 
-                    if pb_status == "kept" and bundle:
-                        results.append(bundle)
-                    elif pb_status == "retrieval_incomplete":
-                        retry_candidates.append({
+                # 处理每个相似分子
+                for similar in similarity_result.similar_molecules:
+                    try:
+                        similar_data = {
                             "chembl_id": similar.chembl_id,
-                            "parent_chembl_id": chembl_id,
-                            "screening_status": "retrieval_incomplete",
-                            "reason": "chmbl_retrieval_incomplete",
-                        })
-                    elif pb_status == "evidence_insufficient":
-                        discarded.append({
-                            "chembl_id": similar.chembl_id,
-                            "parent_chembl_id": chembl_id,
-                            "reason": "evidence_insufficient",
-                            "screening_status": "evidence_insufficient",
-                        })
+                            "smiles": similar.smiles,
+                            "already_in_diqta": similar.already_in_diqta
+                        }
 
-                except Exception as e:
-                    logger.warning(f"处理相似分子失败: {similar.chembl_id}, 错误: {e}")
+                        bundle, pb_status = process_path_b(
+                            similar_molecule=similar_data,
+                            parent_chembl_id=chembl_id,
+                            tanimoto=similar.tanimoto,
+                            assembler=assembler,
+                            physchem_calc=physchem_calc,
+                            bioactivity_retriever=bioactivity_retriever,
+                            clinical_retriever=clinical_retriever,
+                            literature_retriever=literature_retriever,
+                            sufficiency_judge=sufficiency_judge,
+                            conflict_detector=conflict_detector,
+                            chembl_client=chembl_client,
+                            parent_drug_name=molecule.get("drug_name"),
+                        )
 
-        except Exception as e:
-            logger.error(f"相似性检索失败: {molecule.get('chembl_id')}, 错误: {e}")
+                        if pb_status == "kept" and bundle:
+                            results.append(bundle)
+                        elif pb_status == "retrieval_incomplete":
+                            retry_candidates.append({
+                                "chembl_id": similar.chembl_id,
+                                "parent_chembl_id": chembl_id,
+                                "screening_status": "retrieval_incomplete",
+                                "reason": "chmbl_retrieval_incomplete",
+                            })
+                        elif pb_status == "evidence_insufficient":
+                            discarded.append({
+                                "chembl_id": similar.chembl_id,
+                                "parent_chembl_id": chembl_id,
+                                "reason": "evidence_insufficient",
+                                "screening_status": "evidence_insufficient",
+                            })
+
+                    except Exception as e:
+                        logger.warning(f"处理相似分子失败: {similar.chembl_id}, 错误: {e}")
+
+            except Exception as e:
+                logger.error(f"相似性检索失败: {molecule.get('chembl_id')}, 错误: {e}")
 
     # 保存结果
     logger.info("-" * 40)
@@ -617,6 +641,16 @@ def main():
         default="data/output/DIQTA_Chembl.json",
         help="路径 A 完成后保存的 DIQTA↔ChEMBL 父分子表（含 drug_name）",
     )
+    parser.add_argument(
+        "--path-a-only",
+        action="store_true",
+        help="仅处理路径 A（DIQTA 原始分子证据包）",
+    )
+    parser.add_argument(
+        "--path-b-only",
+        action="store_true",
+        help="仅处理路径 B（相似扩展）；不组装路径 A 证据包，仍加载 DIQTA 并补全父分子 drug_name",
+    )
 
     args = parser.parse_args()
 
@@ -627,6 +661,8 @@ def main():
         max_molecules=args.max,
         sample_size=args.sample,
         diqta_chembl_json=args.diqta_chembl_json,
+        path_a_only=args.path_a_only,
+        path_b_only=args.path_b_only,
     )
 
 

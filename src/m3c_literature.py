@@ -45,26 +45,39 @@ class LiteratureRetriever:
         self.pubmed_client = pubmed_client or PubMedClient()
         self.cache = get_global_cache()
 
-    def retrieve(self, chembl_id: str, drug_name: str,
-                max_pubmed: int = 30) -> LiteratureEvidence:
+    def retrieve(
+        self,
+        chembl_id: str,
+        drug_name: str,
+        max_pubmed: int = 30,
+        *,
+        pubmed_query_name: Optional[str] = None,
+    ) -> LiteratureEvidence:
         """
         检索文献证据
 
         Args:
             chembl_id: 分子的ChEMBL ID
-            drug_name: 药物名称
+            drug_name: 默认检索名（未传 pubmed_query_name 时用于 PubMed/专利）
             max_pubmed: 最大PubMed文章数
+            pubmed_query_name: 若设置（如路径 B 父药名），PubMed 用该词而非 drug_name
 
         Returns:
             文献证据对象
         """
         logger.info(f"检索文献证据: {chembl_id}")
+        q_pubmed = (pubmed_query_name or "").strip() or drug_name
+        if pubmed_query_name and (pubmed_query_name or "").strip():
+            logger.info(
+                "M3C PubMed：使用 pubmed_query_name=%r（路径 B 父药锚定）",
+                q_pubmed,
+            )
 
         # 1. 从PubMed检索心脏毒性相关文章
-        pubmed_articles = self._search_pubmed(drug_name, max_pubmed)
+        pubmed_articles = self._search_pubmed(q_pubmed, max_pubmed)
 
         # 2. 从专利数据库检索（暂为占位）
-        patents = self._search_patents(drug_name)
+        patents = self._search_patents(q_pubmed)
 
         return LiteratureEvidence(
             pubmed_articles=pubmed_articles,

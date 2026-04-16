@@ -82,12 +82,15 @@ class ClinicalStatusRetriever:
         drug_name: Optional[str] = None,
         *,
         refresh_chembl_clinical: bool = False,
+        clinicaltrials_query_name: Optional[str] = None,
     ) -> ClinicalEvidence:
         """
         检索临床状态证据。
 
-        :param drug_name: 若传入，须与 ChEMBL ``pref_name`` 规范化一致才检索 ClinicalTrials；
-            未传入则用 ``pref_name`` 检索（若有）。
+        :param drug_name: 若未传 ``clinicaltrials_query_name``：与 ChEMBL ``pref_name`` 规范化一致才检索
+            ClinicalTrials；未传入则用 ``pref_name`` 检索（若有）。
+        :param clinicaltrials_query_name: 若设置（如路径 B 父药名），**直接**作为 ClinicalTrials 检索词，
+            不与子分子 ``pref_name`` 做一致性校验（相似扩展化合物通常不是同一药品名）。
         :param refresh_chembl_clinical: 为 True 时删除 ``chembl_clinical_{id}`` 缓存后再拉 ChEMBL drug。
         """
         logger.info("检索临床状态数据: %s", chembl_id)
@@ -108,9 +111,27 @@ class ClinicalStatusRetriever:
         clinical_trials: List[ClinicalTrialInfo] = []
         ct_query_name: Optional[str] = None
         user_dn = (drug_name or "").strip() or None
+        pref_empty = not (pref_name or "").strip()
 
-        if user_dn is not None:
-            if _normalize_label(user_dn) != _normalize_label(pref_name):
+        ct_override = (clinicaltrials_query_name or "").strip()
+        if ct_override:
+            ct_query_name = ct_override
+            _ov = (
+                f"M3B ClinicalTrials：使用 clinicaltrials_query_name={ct_query_name!r} "
+                f"（路径 B 以父药锚定，与子分子 pref_name 无关）"
+            )
+            logger.info(_ov)
+            print(_ov, file=sys.stderr, flush=True)
+        elif user_dn is not None:
+            # 路径 B 相似分子等：ChEMBL 常无 pref_name，此时用调用方名称（多为父药 DIQTA drug_name）查试验
+            if pref_empty:
+                ct_query_name = user_dn
+                _fb = (
+                    f"M3B ClinicalTrials：子分子无 pref_name，使用传入 drug_name={user_dn!r}"
+                )
+                logger.info(_fb)
+                print(_fb, file=sys.stderr, flush=True)
+            elif _normalize_label(user_dn) != _normalize_label(pref_name):
                 _skip = (
                     f"M3B 跳过 ClinicalTrials：传入 drug_name 与 ChEMBL pref_name 不一致 | "
                     f"drug_name={user_dn!r} pref_name={pref_name!r}"
