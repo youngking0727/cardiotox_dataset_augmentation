@@ -1,13 +1,10 @@
 """M6: 冲突检测器模块"""
 
 import logging
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 from dataclasses import dataclass
 
-from schemas import (
-    TargetBioactivity, ClinicalEvidence, LiteratureEvidence,
-    PubMedArticle
-)
+from schemas import TargetBioactivity, ClinicalEvidence, LiteratureEvidence
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +29,6 @@ class ConflictDetector:
 
     def __init__(self):
         """初始化冲突检测器"""
-        pass
 
     def detect(self,
               bioactivity_evidence: Dict[str, TargetBioactivity],
@@ -115,40 +111,11 @@ class ConflictDetector:
 
         return None
 
-    def _detect_C_conflict(self,
-                          literature_evidence: LiteratureEvidence) -> Optional[str]:
-        """
-        检测C类（文献）内部冲突
-
-        场景：不同文献给出相反结论
-
-        Args:
-            literature_evidence: 文献证据
-
-        Returns:
-            冲突描述，如果没有冲突返回None
-        """
-        articles = literature_evidence.pubmed_articles
-
-        if len(articles) < 2:
-            return None
-
-        # 简化检测：检查是否有综述文章（可能与其他文章冲突）
-        has_review = any(a.is_review for a in articles)
-
-        # 统计关键词分布
-        cardiotox_articles = [
-            a for a in articles
-            if a.relevance_keywords_hit and a.molecule_mentioned and not a.is_review
-        ]
-
-        # 简单冲突检测：如果有综述且有实际研究文章，可能存在观点差异
-        # 实际应用中需要更复杂的NLP分析
-
-        if has_review and len(cardiotox_articles) > 0:
-            # 这里可以做更复杂的冲突检测
-            pass
-
+    def _detect_C_conflict(
+        self, literature_evidence: LiteratureEvidence
+    ) -> Optional[str]:
+        """C 类文献内部对立结论：预留，当前未实现（需结构化对立或 NLP）。"""
+        del literature_evidence
         return None
 
     def get_conflict_summary(self, conflict_result: ConflictResult) -> str:
@@ -171,8 +138,3 @@ class ConflictDetector:
             parts.append(f"C: {conflict_result.conflict_within_C}")
 
         return "; ".join(parts) if parts else "No conflicts detected"
-
-
-def create_conflict_detector() -> ConflictDetector:
-    """创建冲突检测器的工厂函数"""
-    return ConflictDetector()

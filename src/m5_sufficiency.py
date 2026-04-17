@@ -26,7 +26,6 @@ from rules.cardiotox_evidence_rules import (
     EVIDENCE_PRIORITY_3,
     priority_rank,
 )
-from m3b_clinical import ClinicalStatusRetriever
 from m3c_literature import LiteratureRetriever
 
 logger = logging.getLogger(__name__)
@@ -46,20 +45,15 @@ class EvidenceSufficiencyJudge:
 
     # hERG IC50 阈值（μM）：低于此视为「机制层面」提示，单独出现时置信度偏低
     HERG_IC50_THRESHOLD_TORSADOGENIC = 10.0
-    HERG_IC50_THRESHOLD_STRONG = 1.0
 
-    def __init__(self, clinical_retriever: Optional[ClinicalStatusRetriever] = None,
-                 literature_retriever: Optional[LiteratureRetriever] = None):
+    def __init__(self, literature_retriever: Optional[LiteratureRetriever] = None):
         """
         初始化证据充分性判定器
 
         Args:
-            clinical_retriever: 临床状态检索器
-            literature_retriever: 文献检索器
+            literature_retriever: 若提供，PubMed 心脏毒性相关计数用实例方法；否则见
+                ``LiteratureRetriever.count_cardiotox_relevant`` 静态计数（避免默认拉 PubMed）。
         """
-        # 默认不构造 ClinicalStatusRetriever / LiteratureRetriever，避免仅用于 M5 判定时
-        # 意外实例化 PubMedClient 并打印 NCBI_EMAIL 警告（见 compute_evidence_density 计数逻辑）。
-        self.clinical_retriever = clinical_retriever
         self.literature_retriever = literature_retriever
 
     def compute_evidence_density(self,
@@ -328,8 +322,3 @@ class EvidenceSufficiencyJudge:
         """兼容入口：仅返回 (label, confidence)。完整说明请用 judge_label_detailed。"""
         d = self.judge_label_detailed(bioactivity_evidence, clinical_evidence)
         return d.label, d.confidence
-
-
-def create_evidence_sufficiency_judge() -> EvidenceSufficiencyJudge:
-    """创建证据充分性判定器的工厂函数"""
-    return EvidenceSufficiencyJudge()

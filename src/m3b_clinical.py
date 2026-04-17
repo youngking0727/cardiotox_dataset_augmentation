@@ -57,17 +57,6 @@ def _approved_from_max_phase(mp: Optional[int]) -> Optional[bool]:
 class ClinicalStatusRetriever:
     """临床状态检索器"""
 
-    CARDIOTOX_KEYWORDS = [
-        "cardiac",
-        "heart",
-        "cardiotoxicity",
-        "cardiovascular",
-        "arrhythmia",
-        "torsades",
-        "qt prolongation",
-        "sudden death",
-    ]
-
     def __init__(
         self,
         chembl_client: Optional[ChEMBLClient] = None,
@@ -314,19 +303,3 @@ class ClinicalStatusRetriever:
 
     def _get_fda_warnings(self, chembl_id: str) -> List[str]:
         return []
-
-    def check_withdrawn_for_qt(self, chembl_id: str) -> bool:
-        chembl_data = self._retrieve_from_chembl(chembl_id)
-        withdrawn = chembl_data.get("withdrawn")
-
-        if not withdrawn or not getattr(withdrawn, "flag", False):
-            return False
-
-        reason = (getattr(withdrawn, "reason", None) or "").lower()
-        qt_keywords = ["qt", "torsades", "torsade", "arrhythmia", "cardiac"]
-
-        return any(kw in reason for kw in qt_keywords)
-
-
-def create_clinical_status_retriever() -> ClinicalStatusRetriever:
-    return ClinicalStatusRetriever()

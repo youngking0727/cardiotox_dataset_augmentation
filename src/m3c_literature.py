@@ -292,27 +292,6 @@ class LiteratureRetriever:
         """
         return []
 
-    def _get_related_pubmed_from_chembl(self, chembl_id: str) -> List[str]:
-        try:
-            raw = self.chembl_client.get_activities(chembl_id)
-            activities = raw[0] if isinstance(raw, tuple) else raw
-            if not isinstance(activities, list):
-                activities = []
-
-            doc_ids = set()
-            for activity in activities:
-                if not isinstance(activity, dict):
-                    continue
-                doc_id = activity.get("document_chembl_id")
-                if doc_id:
-                    doc_ids.add(doc_id)
-
-            return []
-
-        except Exception as e:
-            logger.warning(f"从ChEMBL获取关联文献失败: {chembl_id}, 错误: {e}")
-            return []
-
     @staticmethod
     def count_cardiotox_relevant(articles: List[PubMedArticle]) -> int:
         count = 0
@@ -325,7 +304,3 @@ class LiteratureRetriever:
 
     def get_cardiotox_relevant_count(self, articles: List[PubMedArticle]) -> int:
         return self.count_cardiotox_relevant(articles)
-
-
-def create_literature_retriever() -> LiteratureRetriever:
-    return LiteratureRetriever()

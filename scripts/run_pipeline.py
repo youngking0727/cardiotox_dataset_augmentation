@@ -112,6 +112,38 @@ def load_diqta_data(diqta_file: str) -> List[Dict[str, Any]]:
     return records
 
 
+def _label_matches_filter(m: Dict[str, Any], target: str) -> bool:
+    """与 CLI --label 比较；兼容 Excel 中数值 0/1、0.0/1.0 及字符串。"""
+    import pandas as pd
+
+    raw = m.get("label", "")
+    try:
+        if raw is None or (isinstance(raw, float) and pd.isna(raw)):
+            return False
+    except Exception:
+        if raw is None:
+            return False
+    s_raw = str(raw).strip()
+    if not s_raw:
+        return False
+    t = str(target).strip()
+    if not t:
+        return False
+    try:
+        return float(s_raw) == float(t)
+    except (TypeError, ValueError):
+        pass
+    return s_raw.lower() == t.lower()
+
+
+def filter_diqta_by_label(
+    molecules: List[Dict[str, Any]], label_filter: Optional[str]
+) -> List[Dict[str, Any]]:
+    if not label_filter:
+        return molecules
+    return [m for m in molecules if _label_matches_filter(m, label_filter)]
+
+
 def enrich_diqta_chembl_ids(
     molecules: List[Dict[str, Any]], chembl_client: ChEMBLClient
 ) -> List[Dict[str, Any]]:
@@ -419,7 +451,8 @@ def run_pipeline(diqta_file: str = "data/DIQTA阴性样本为主划分.xlsx",
                 sample_size: int = 5,
                 diqta_chembl_json: str = "data/output/DIQTA_Chembl.json",
                 path_a_only: bool = False,
-                path_b_only: bool = False):
+                path_b_only: bool = False,
+                label_filter: Optional[str] = None):
     """
     运行完整的数据处理流程
 
@@ -432,6 +465,7 @@ def run_pipeline(diqta_file: str = "data/DIQTA阴性样本为主划分.xlsx",
         diqta_chembl_json: 路径 A 结束后写入的父分子表（含 drug_name），默认与 evidence 同目录
         path_a_only: 仅跑路径 A（DIQTA 原始分子证据包）
         path_b_only: 仅跑路径 B（相似扩展）；仍加载 DIQTA、解析 ChEMBL ID，并做父分子 drug_name 补全后跑 M1→相似分子流水线
+        label_filter: 若设置（如 '0'、'1'），仅保留 label 列匹配的分子；在 sample_size 截断之前应用
     """
     # 加载配置
     config = load_config(config_file)
@@ -480,7 +514,7 @@ def run_pipeline(diqta_file: str = "data/DIQTA阴性样本为主划分.xlsx",
     clinical_retriever = ClinicalStatusRetriever(chembl_client, clinicaltrials_client)
     literature_retriever = LiteratureRetriever(chembl_client, pubmed_client)
     assembler = EvidenceBundleAssembler(chembl_client)
-    sufficiency_judge = EvidenceSufficiencyJudge(clinical_retriever, literature_retriever)
+    sufficiency_judge = EvidenceSufficiencyJudge(literature_retriever)
     conflict_detector = ConflictDetector()
 
     # 加载DIQTA数据
@@ -491,7 +525,15 @@ def run_pipeline(diqta_file: str = "data/DIQTA阴性样本为主划分.xlsx",
         logger.error("没有找到DIQTA数据，请检查数据文件")
         return
 
-    # 用于测试：只处理少量样本
+    if label_filter is not None and str(label_filter).strip() != "":
+        before = len(diqta_molecules)
+        diqta_molecules = filter_diqta_by_label(diqta_molecules, str(label_filter).strip())
+        logger.info(f"按 label={label_filter!r} 筛选: {before} -> {len(diqta_molecules)} 条")
+        if not diqta_molecules:
+            logger.error("label 筛选后无数据，请检查 --label 与表中 label 列是否一致")
+            return
+
+    # 用于测试：只处理少量样本（在 label 筛选之后）
     if sample_size > 0:
         diqta_molecules = diqta_molecules[:sample_size]
         logger.info(f"测试模式：只处理 {len(diqta_molecules)} 个样本")
@@ -703,6 +745,13 @@ def main():
         action="store_true",
         help="仅处理路径 B（相似扩展）；不组装路径 A 证据包，仍加载 DIQTA 并补全父分子 drug_name",
     )
+    parser.add_argument(
+        "--label",
+        type=str,
+        default=None,
+        metavar="VALUE",
+        help="仅保留 label 列等于该值的行（如 0、1）；在 --sample 截断之前筛选，便于只跑某类标签的前 N 条",
+    )
 
     args = parser.parse_args()
 
@@ -715,6 +764,7 @@ def main():
         diqta_chembl_json=args.diqta_chembl_json,
         path_a_only=args.path_a_only,
         path_b_only=args.path_b_only,
+        label_filter=args.label,
     )
 
 

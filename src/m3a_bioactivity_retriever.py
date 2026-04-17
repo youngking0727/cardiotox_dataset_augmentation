@@ -26,20 +26,8 @@ DEFAULT_TARGETS = [
 ]
 
 
-def classify_activity_evidence(
-    activity: Dict[str, Any],
-    target_name: str,
-    target_chembl_id: str,
-) -> Dict[str, Any]:
-    """activity 级别分类（供 M5 / 外部测试使用）。"""
-    return classify_activity_evidence_dict(activity, target_name, target_chembl_id)
-
-
 class BioactivityRetriever:
     """靶点活性检索器"""
-
-    # 保留历史集合；实际接受类型以 evidence_rules type_normalization_map 与数值可解析为准
-    VALID_MEASUREMENT_TYPES = ["IC50", "Ki", "Kd", "EC50", "IC90", "IC95"]
 
     def __init__(
         self,
@@ -283,10 +271,3 @@ class BioactivityRetriever:
         best_measurement = herg_data.measurements[0]
         ic50 = best_measurement.value
         return ic50 < threshold
-
-
-def create_bioactivity_retriever(
-    targets: Optional[List[TargetConfig]] = None,
-) -> BioactivityRetriever:
-    """创建靶点活性检索器的工厂函数"""
-    return BioactivityRetriever(targets=targets)

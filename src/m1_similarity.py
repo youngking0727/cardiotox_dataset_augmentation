@@ -156,6 +156,108 @@ def create_similarity_retriever(threshold: float = 0.8,
         max_results=max_results
     )
 
+    def batch_retrieve(self, queries: List[Dict[str, str]],
+                      diqta_smiles: Optional[Set[str]] = None) -> List[SimilarityResult]:
+        """
+        批量检索多个分子的相似分子
+
+        Args:
+            queries: 查询列表，每项包含smiles和可选的chembl_id
+            diqta_smiles: DIQTA中已有的SMILES集合
+
+        Returns:
+            相似性检索结果列表
+        """
+        results = []
+        for query in queries:
+            smiles = query.get("smiles")
+            chembl_id = query.get("chembl_id")
+
+            if not smiles:
+                logger.warning(f"跳过无效查询: {query}")
+                continue
+
+            try:
+                result = self.retrieve(
+                    query_smiles=smiles,
+                    query_chembl_id=chembl_id,
+                    diqta_smiles=diqta_smiles
+                )
+                results.append(result)
+            except Exception as e:
+                logger.error(f"相似性检索失败: {smiles}, 错误: {e}")
+                # 仍然添加空结果以保持索引对应
+                results.append(
+                    SimilarityResult(
+                        query_smiles=smiles,
+                        query_chembl_id=chembl_id,
+                        similar_molecules=[],
+                        query_similarity_ok=False,
+                    )
+                )
+
+        return results
+
+
+def create_similarity_retriever(threshold: float = 0.8,
+                                max_results: int = 100) -> SimilarityRetriever:
+    """创建相似性检索器的工厂函数"""
+    return SimilarityRetriever(
+        threshold=threshold,
+        max_results=max_results
+    )
+
+    def batch_retrieve(self, queries: List[Dict[str, str]],
+                      diqta_smiles: Optional[Set[str]] = None) -> List[SimilarityResult]:
+        """
+        批量检索多个分子的相似分子
+
+        Args:
+            queries: 查询列表，每项包含smiles和可选的chembl_id
+            diqta_smiles: DIQTA中已有的SMILES集合
+
+        Returns:
+            相似性检索结果列表
+        """
+        results = []
+        for query in queries:
+            smiles = query.get("smiles")
+            chembl_id = query.get("chembl_id")
+
+            if not smiles:
+                logger.warning(f"跳过无效查询: {query}")
+                continue
+
+            try:
+                result = self.retrieve(
+                    query_smiles=smiles,
+                    query_chembl_id=chembl_id,
+                    diqta_smiles=diqta_smiles
+                )
+                results.append(result)
+            except Exception as e:
+                logger.error(f"相似性检索失败: {smiles}, 错误: {e}")
+                # 仍然添加空结果以保持索引对应
+                results.append(
+                    SimilarityResult(
+                        query_smiles=smiles,
+                        query_chembl_id=chembl_id,
+                        similar_molecules=[],
+                        query_similarity_ok=False,
+                    )
+                )
+
+        return results
+
+
+def create_similarity_retriever(threshold: float = 0.8,
+                                max_results: int = 100) -> SimilarityRetriever:
+    """创建相似性检索器的工厂函数"""
+    return SimilarityRetriever(
+        threshold=threshold,
+        max_results=max_results
+    )
+
 
 if __name__ == "__main__":
     import argparse

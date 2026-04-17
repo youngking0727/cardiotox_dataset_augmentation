@@ -188,8 +188,3 @@ class EvidenceBundleAssembler:
             pubmed_articles=[],
             patents=[],
         )
-
-
-def create_evidence_bundle_assembler() -> EvidenceBundleAssembler:
-    """创建证据包组装器的工厂函数"""
-    return EvidenceBundleAssembler()

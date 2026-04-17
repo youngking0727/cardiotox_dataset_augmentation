@@ -144,6 +144,19 @@ def _is_missing_value(v: Any) -> bool:
     return False
 
 
+def _chembl_si_float(v: Any, default: float = 0.0) -> SourceInfo:
+    """ChEMBL 常返回 null；SourceInfo.value 不可为 None。"""
+    if _is_missing_value(v):
+        return SourceInfo(value=default, source="chembl")
+    return SourceInfo(value=v, source="chembl")
+
+
+def _chembl_si_int(v: Any, default: int = 0) -> SourceInfo:
+    if _is_missing_value(v):
+        return SourceInfo(value=default, source="chembl")
+    return SourceInfo(value=v, source="chembl")
+
+
 def _float_from_any(v: Any) -> Optional[float]:
     if _is_missing_value(v):
         return None
@@ -211,13 +224,13 @@ def normalize_physchem_numeric_core(p: PhysChemProperties) -> PhysChemProperties
     def f(si: SourceInfo) -> SourceInfo:
         v = _float_from_any(si.value)
         if v is None:
-            return si
+            return SourceInfo(value=0.0, source=si.source)
         return SourceInfo(value=v, source=si.source)
 
     def i(si: SourceInfo) -> SourceInfo:
         iv = _int_from_any(si.value)
         if iv is None:
-            return si
+            return SourceInfo(value=0, source=si.source)
         return SourceInfo(value=iv, source=si.source)
 
     def opt_f(si: Optional[SourceInfo]) -> Optional[SourceInfo]:
@@ -225,7 +238,7 @@ def normalize_physchem_numeric_core(p: PhysChemProperties) -> PhysChemProperties
             return None
         v = _float_from_any(si.value)
         if v is None:
-            return si
+            return None
         return SourceInfo(value=v, source=si.source)
 
     return PhysChemProperties(
@@ -279,28 +292,24 @@ class PhysChemCalculator:
             return None
 
         try:
-            # 能从chemblh获取的理化性质
+            mw_raw = props.get("full_mwt") or props.get("molweight")
+            ro5_raw = props.get("num_ro5_violations")
+            if ro5_raw is None:
+                ro5_raw = 0
             result = PhysChemProperties(
-                mw=SourceInfo(
-                    value=props.get("full_mwt") or props.get("molweight"),
-                    source="chembl",
-                ),
-                logp=SourceInfo(value=props.get("alogp"), source="chembl"),
+                mw=_chembl_si_float(mw_raw, 0.0),
+                logp=_chembl_si_float(props.get("alogp"), 0.0),
                 logd_7_4=None,
-                tpsa=SourceInfo(value=props.get("psa"), source="chembl"),
-                hbd=SourceInfo(value=props.get("hbd"), source="chembl"),
-                hba=SourceInfo(value=props.get("hba"), source="chembl"),
-                rotatable_bonds=SourceInfo(value=props.get("rtb"), source="chembl"),
-                aromatic_rings=SourceInfo(
-                    value=props.get("aromatic_rings"), source="chembl"
-                ),
-                heavy_atoms=SourceInfo(value=props.get("heavy_atoms"), source="chembl"),
+                tpsa=_chembl_si_float(props.get("psa"), 0.0),
+                hbd=_chembl_si_int(props.get("hbd"), 0),
+                hba=_chembl_si_int(props.get("hba"), 0),
+                rotatable_bonds=_chembl_si_int(props.get("rtb"), 0),
+                aromatic_rings=_chembl_si_int(props.get("aromatic_rings"), 0),
+                heavy_atoms=_chembl_si_int(props.get("heavy_atoms"), 0),
                 basic_pka=None,
                 acidic_pka=None,
-                ro5_violations=SourceInfo(
-                    value=props.get("num_ro5_violations", 0), source="chembl"
-                ),
-                qed=SourceInfo(value=props.get("qed_weighted"), source="chembl"),
+                ro5_violations=_chembl_si_int(ro5_raw, 0),
+                qed=_chembl_si_float(props.get("qed_weighted"), 0.0),
                 rdkit_descriptors={},
                 engineered_features={},
             )
