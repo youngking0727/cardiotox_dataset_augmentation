@@ -57,6 +57,21 @@ python scripts/run_pipeline.py --sample 5
 - `--output PATH`: 输出文件路径
 - `--config PATH`: 配置文件路径
 
+### DIQTA 表中药名与 ChEMBL 对齐（宜暂时替换为 pref\_name）
+
+通过名称解析 ChEMBL ID 时，应以 **ChEMBL `pref_name`** 与 API 对齐。下列 **6** 条在 DIQTA 表中的**原药物名字符串**与 ChEMBL 首选名不一致或含制剂/商标说明；**建议**在 Excel/导入列中**暂时将 `name`（或用于查 ChEMBL 的字段）替换为右侧 `pref_name`**，以便稳定命中同一母体/登记名。
+
+| 表行 | 原药物名（片段） | 建议替换为 pref\_name | 解析示例 molecule\_chembl\_id |
+|------|------------------|----------------------|------------------------------|
+| 3 | `Thioridazine (Melleril)`（含 NBSP/商品名） | `THIORIDAZINE` | CHEMBL479 |
+| 224 | `TEMSIROLIMUS INJECTION` | `TEMSIROLIMUS` | CHEMBL1201182 |
+| 286 | `LEXISCAN(R) (REGADENOSON)` | `REGADENOSON ANHYDROUS` | CHEMBL317052 |
+| 287 | `ADENOSINE INJECTION` | `ADENOSINE` | CHEMBL477 |
+| 315 | `LORCASERIN HYDROCHLORIDE HEMIHYDRATE` | `LORCASERIN` | CHEMBL360328 |
+| 326 | `ATROPINE INJECTION, 2 MG; ATROPINE SULFATE ...`（长制剂串） | `ATROPINE` | CHEMBL9751 |
+
+> 说明：行号为 **Excel/表内数据行**（首行为表头时，与「行号」一致）。替换仅用于 **名称→ChEMBL ID** 解析；**SMILES** 仍以表内结构为准，不必改写。
+
 ### 配置
 
 编辑 `config/` 目录下的配置文件：
