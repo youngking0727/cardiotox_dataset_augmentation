@@ -535,6 +535,7 @@ class ChEMBLClient:
         if not cid:
             return None, True
 
+        # TODO: 获取分子静态信息。要完整"药物档案"，还需查 activity、indication、interaction、document 等接口。
         data, ok = self._request_json(
             f"molecule/{cid}.json",
             resource_name="molecule.json",

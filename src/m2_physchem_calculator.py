@@ -51,6 +51,9 @@ RDKIT_DESCRIPTOR_KEYS = {
     "num_aromatic_rings",
 }
 
+# 工程特征：通过 SMARTS 匹配、规则计算得到的特征
+# 隐式推导：ENGINEERED_FEATURE_KEYS = REQUIRED_FEATURE_KEYS - RDKIT_DESCRIPTOR_KEYS
+# 这意味着每当 Features.json 更新时，代码会自动同步，但可能掩盖遗漏问题
 ENGINEERED_FEATURE_KEYS = [k for k in REQUIRED_FEATURE_KEYS if k not in RDKIT_DESCRIPTOR_KEYS]
 
 # RDKit 描述符：连续值一律 float；计数字段一律 int
@@ -97,7 +100,7 @@ def _normalize_rdkit_descriptor_types(rd: Dict[str, Any]) -> Dict[str, Any]:
     for k, v in rd.items():
         if k in RDKIT_FLOAT_KEYS:
             if isinstance(v, float) and math.isnan(v):
-                out[k] = v
+                out[k] = None  # nan 不是合法 JSON，转换为 None
             else:
                 try:
                     out[k] = float(v)
@@ -105,7 +108,7 @@ def _normalize_rdkit_descriptor_types(rd: Dict[str, Any]) -> Dict[str, Any]:
                     out[k] = 0.0
         else:
             if isinstance(v, float) and math.isnan(v):
-                out[k] = v
+                out[k] = None
             else:
                 try:
                     out[k] = int(round(float(v)))
@@ -250,6 +253,7 @@ class PhysChemCalculator:
     def __init__(self, chembl_client: Optional[ChEMBLClient] = None):
         self.chembl_client = chembl_client or ChEMBLClient()
         self.cache = get_global_cache()
+        self._chembl_molecule_cache: Dict[str, Dict[str, Any]] = {}  # 缓存 molecule 数据，避免重复 API 调用
 
     # ------------------------------------------------------------------ #
     # ChEMBL
@@ -266,12 +270,16 @@ class PhysChemCalculator:
             logger.warning("未找到分子: %s", chembl_id)
             return None
 
+        # 缓存 molecule 数据，避免后续 _resolve_working_smiles 重复调用 API
+        self._chembl_molecule_cache[chembl_id] = molecule
+
         props = molecule.get("molecule_properties")
         if not props:
             logger.warning("分子无可用性质: %s", chembl_id)
             return None
 
         try:
+            # 能从chemblh获取的理化性质
             result = PhysChemProperties(
                 mw=SourceInfo(
                     value=props.get("full_mwt") or props.get("molweight"),
@@ -372,7 +380,7 @@ class PhysChemCalculator:
             "HallKierAlpha": hall_kier,
             "MolWt": molwt,
             "logP": logp_val,
-            "cLogP": logp_val,
+            "cLogP": logp_val,  # 与 logP 同值，保持与 Features.json 兼容
             "topological_polar_surface_area": tpsa_val,
             "num_rotatable": n_rot,
             "formal_charge": fcharge,
@@ -525,16 +533,34 @@ class PhysChemCalculator:
         return n_basic, n_tert, n_quat
 
     def _is_basic_aliphatic_n(self, atom, mol) -> bool:
+        """
+        判断脂肪氮是否为碱性氮（可接受质子）。
+        排除：芳香氮、酰胺氮、硝基氮等。
+        """
         from rdkit import Chem
 
         if atom.GetAtomicNum() != 7:
             return False
+        # 芳香氮排除
         if atom.GetIsAromatic():
             return False
-        for nb in atom.GetNeighbors():
-            if nb.GetAtomicNum() == 8 and nb.GetHybridization() == Chem.HybridizationType.SP2:
-                if nb.GetTotalDegree() == 2:
+
+        # 酰胺氮排除：氮原子直接连接羰基碳 [N]-[C]=[O]
+        # SMARTS: N-C(=O) 或 N-C(=S)
+        amide_pat = Chem.MolFromSmarts("[NX3][CX3]=[OX1]")
+        if amide_pat and mol.HasSubstructMatch(amide_pat):
+            # 检查当前氮是否在酰胺模式中
+            for match in mol.GetSubstructMatches(amide_pat):
+                if atom.GetIdx() == match[0]:  # 第一个原子是氮
                     return False
+
+        # 排除连接到大原子（O,S）的sp2碳的氮（可能是酰胺、酯等）
+        for nb in atom.GetNeighbors():
+            if nb.GetAtomicNum() == 8 or nb.GetAtomicNum() == 16:
+                # 检查氮-碳-氧的连接模式
+                if nb.GetHybridization() == Chem.HybridizationType.SP2:
+                    if nb.GetTotalDegree() == 2:
+                        return False
         return True
 
     def _count_benzene_like_rings(self, mol) -> int:
@@ -548,11 +574,18 @@ class PhysChemCalculator:
         return n
 
     def _has_biaryl(self, mol) -> bool:
+        """
+        检测联苯结构（两个芳香环通过单键相连）。
+        使用SMARTS而非SMILES，避免表示差异导致漏检。
+        SMARTS: 两个芳香碳环通过单键连接
+        """
         from rdkit import Chem
 
-        pat = Chem.MolFromSmiles("c1ccccc1-c2ccccc2")
+        # SMARTS: 任意两个芳香环通过单键相连 (c:c 表示芳香碳之间的单键)
+        pat = Chem.MolFromSmarts("c-c")
         if pat is None:
             return False
+        # 检查分子中是否存在 c-c（两个相连的芳香碳）
         return mol.HasSubstructMatch(pat)
 
     def _has_tertiary_amine(self, mol) -> bool:
@@ -900,32 +933,34 @@ class PhysChemCalculator:
             "acidic_pka": legacy.get("acidic_pka"),
         }
 
-    def calculate_logd(
-        self,
-        logp: float,
-        basic_pka: Optional[float],
-        acidic_pka: Optional[float],
-        ph: float = 7.4,
-    ) -> Optional[float]:
-        if basic_pka is None and acidic_pka is None:
-            return logp
-        try:
-            if basic_pka is not None:
-                fraction = 10 ** (basic_pka - ph)
-                return logp - (0.1 if fraction > 0 else 0)
-            if acidic_pka is not None:
-                fraction = 10 ** (ph - acidic_pka)
-                return logp - (0.1 if fraction > 0 else 0)
-            return logp
-        except Exception as e:
-            logger.warning("logD 计算失败: %s", e)
-            return logp
-
     def _enrich_pka_logd(
         self, props: PhysChemProperties, smiles: str
     ) -> PhysChemProperties:
+        """
+        富集 pKa 和 logD 信息。返回新的 PhysChemProperties 对象（immutable）。
+        """
         if not _ENRICH_PKA_LOGD:
             return props
+
+        # 创建新对象，避免 mutation
+        new_props = PhysChemProperties(
+            mw=props.mw,
+            logp=props.logp,
+            logd_7_4=props.logd_7_4,
+            tpsa=props.tpsa,
+            hbd=props.hbd,
+            hba=props.hba,
+            rotatable_bonds=props.rotatable_bonds,
+            aromatic_rings=props.aromatic_rings,
+            heavy_atoms=props.heavy_atoms,
+            basic_pka=props.basic_pka,
+            acidic_pka=props.acidic_pka,
+            ro5_violations=props.ro5_violations,
+            qed=props.qed,
+            rdkit_descriptors=props.rdkit_descriptors,
+            engineered_features=props.engineered_features,
+        )
+
         pka_part = self.calculate_pka_from_smiles(smiles)
         basic_pka_value = pka_part.get("basic_pka")
         acidic_pka_value = pka_part.get("acidic_pka")
@@ -942,16 +977,16 @@ class PhysChemCalculator:
         )
 
         if basic_pka_value is not None:
-            props.basic_pka = SourceInfo(value=float(basic_pka_value), source="pkasolver")
+            new_props.basic_pka = SourceInfo(value=float(basic_pka_value), source="pkasolver")
         if acidic_pka_value is not None:
-            props.acidic_pka = SourceInfo(
+            new_props.acidic_pka = SourceInfo(
                 value=float(acidic_pka_value), source="pkasolver"
             )
         if logd_value is not None:
-            props.logd_7_4 = SourceInfo(
+            new_props.logd_7_4 = SourceInfo(
                 value=logd_value, source="estimated_from_logp_and_pka"
             )
-        return props
+        return new_props
 
     def _resolve_working_smiles(
         self,
@@ -959,15 +994,26 @@ class PhysChemCalculator:
         smiles: Optional[str],
         chembl_part: Optional[PhysChemProperties],
     ) -> Optional[str]:
+        # 优先从实例变量缓存中获取 molecule（calculate_from_chembl 已缓存）
         if chembl_id:
+            cached_mol = self._chembl_molecule_cache.get(chembl_id)
+            if cached_mol and isinstance(cached_mol, dict):
+                s = (cached_mol.get("molecule_structures") or {}).get("canonical_smiles")
+                if s:
+                    return str(s)
+
+            # 尝试从缓存（文件系统）中获取
             s = self.cache.get(f"physchem_chembl_smiles_{chembl_id}")
             if s:
                 return str(s)
+
+            # 最后才调用 API
             mol, _ = self.chembl_client.get_molecule_by_chembl_id(chembl_id)
             if isinstance(mol, dict):
                 s = (mol.get("molecule_structures") or {}).get("canonical_smiles")
                 if s:
                     return str(s)
+
         if smiles and str(smiles).strip():
             return str(smiles).strip()
         return None

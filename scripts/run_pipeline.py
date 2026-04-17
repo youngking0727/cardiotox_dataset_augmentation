@@ -496,6 +496,7 @@ def run_pipeline(diqta_file: str = "data/DIQTA阴性样本为主划分.xlsx",
         diqta_molecules = diqta_molecules[:sample_size]
         logger.info(f"测试模式：只处理 {len(diqta_molecules)} 个样本")
 
+    # TODO: 这一步只是把chembl_id查询出来了
     diqta_molecules = enrich_diqta_chembl_ids(diqta_molecules, chembl_client)
     logger.info(f"解析 ChEMBL ID 后剩余 {len(diqta_molecules)} 个分子")
     if not diqta_molecules:
