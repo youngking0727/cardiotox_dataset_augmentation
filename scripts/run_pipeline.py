@@ -161,6 +161,7 @@ def enrich_diqta_chembl_ids(
                 f"跳过无 ChEMBL ID 且无 pref_name/name/SMILES 的记录: {m}"
             )
             continue
+        # TODO: 这一步就是希望通过商品名获取chembl_id，但现在逻辑有问题
         info, mol_ok = chembl_client.get_drug_by_name(pref, smiles=smiles or None)
         if not mol_ok:
             logger.warning(

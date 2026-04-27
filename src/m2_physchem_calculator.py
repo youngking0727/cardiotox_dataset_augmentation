@@ -49,6 +49,12 @@ RDKIT_DESCRIPTOR_KEYS = {
     "n_heteroatoms",
     "n_aromatic_atoms",
     "num_aromatic_rings",
+    # 新增：需求文档不重复的 5 项（与 Features.json 对齐）
+    "logd_7_4",
+    "basic_pka",
+    "acidic_pka",
+    "ro5_violations",
+    "qed",
 }
 
 # 工程特征：通过 SMARTS 匹配、规则计算得到的特征
@@ -396,6 +402,12 @@ class PhysChemCalculator:
             "n_heteroatoms": n_het,
             "n_aromatic_atoms": n_arom_atoms,
             "num_aromatic_rings": n_arom_rings,
+            # 新增：需求文档不重复的 5 项（与 Features.json 54 项对齐）
+            "ro5_violations": self._count_ro5_violations(mol),
+            "qed": float(QED.qed(mol)),
+            "logd_7_4": None,  # 需要 pkasolver，默认关闭
+            "basic_pka": None,  # 需要 pkasolver，默认关闭
+            "acidic_pka": None,  # 需要 pkasolver，默认关闭
         }
 
         rdkit_descriptors = _normalize_rdkit_descriptor_types(rdkit_descriptors)
@@ -741,83 +753,6 @@ class PhysChemCalculator:
             logger.warning("RO5 计算失败: %s", e)
             return 0
 
-    # ------------------------------------------------------------------ #
-    # 合并：ChEMBL 优先，RDKit 补洞；bundle 始终写入
-    # ------------------------------------------------------------------ #
-    def _merge_core_sources_v2(
-        self,
-        chembl_part: Optional[PhysChemProperties],
-        rd: Dict[str, Any],
-        smiles: str,
-    ) -> Dict[str, SourceInfo]:
-        from rdkit import Chem
-        from rdkit.Chem import QED
-
-        mol = Chem.MolFromSmiles(smiles)
-        if mol is None:
-            raise ValueError("invalid smiles for merge")
-
-        def cval(attr: str):
-            if not chembl_part:
-                return None
-            si = getattr(chembl_part, attr)
-            return si.value if si is not None else None
-
-        def pick(attr: str, rdk_key: str, conv=None):
-            v = cval(attr)
-            if not _is_missing_value(v):
-                return SourceInfo(value=v, source="chembl")
-            rv = rd[rdk_key]
-            if conv:
-                rv = conv(rv)
-            return SourceInfo(value=rv, source="rdkit")
-
-        mw = pick("mw", "MolWt", float)
-        logp = pick("logp", "logP", float)
-        tpsa = pick("tpsa", "topological_polar_surface_area", float)
-        hbd = pick("hbd", "NumHDonors", int)
-        hba = pick("hba", "NumHAcceptors", int)
-        rot = pick("rotatable_bonds", "num_rotatable", int)
-
-        ar = cval("aromatic_rings")
-        if not _is_missing_value(ar):
-            aromatic = SourceInfo(value=ar, source="chembl")
-        else:
-            aromatic = SourceInfo(
-                value=int(rd["num_aromatic_rings"]), source="rdkit"
-            )
-
-        ha = cval("heavy_atoms")
-        if not _is_missing_value(ha):
-            heavy = SourceInfo(value=ha, source="chembl")
-        else:
-            heavy = SourceInfo(value=int(rd["HeavyAtomCount"]), source="rdkit")
-
-        ro5 = cval("ro5_violations")
-        if not _is_missing_value(ro5):
-            ro5_si = SourceInfo(value=ro5, source="chembl")
-        else:
-            ro5_si = SourceInfo(value=self._count_ro5_violations(mol), source="rdkit")
-
-        qv = cval("qed")
-        if not _is_missing_value(qv):
-            qed_si = SourceInfo(value=qv, source="chembl")
-        else:
-            qed_si = SourceInfo(value=float(QED.qed(mol)), source="rdkit")
-
-        return {
-            "mw": mw,
-            "logp": logp,
-            "tpsa": tpsa,
-            "hbd": hbd,
-            "hba": hba,
-            "rotatable_bonds": rot,
-            "aromatic_rings": aromatic,
-            "heavy_atoms": heavy,
-            "ro5_violations": ro5_si,
-            "qed": qed_si,
-        }
-
     def calculate_pka(self, smiles: str) -> Optional[Dict[str, float]]:
         """
         pKa 为可选依赖：优先旧版 API ``PkaCalculator.calc_pka``；
@@ -1040,6 +975,7 @@ class PhysChemCalculator:
         if chembl_id:
             chembl_part = self.calculate_from_chembl(chembl_id)
 
+        # 这里work是canonical_smiles
         work = self._resolve_working_smiles(chembl_id, smiles, chembl_part)
         if not work:
             if chembl_part:
@@ -1060,22 +996,34 @@ class PhysChemCalculator:
         rd = bundle["rdkit_descriptors"]
         eng = bundle["engineered_features"]
 
-        core = self._merge_core_sources_v2(chembl_part, rd, work)
+        # 简化：ChEMBL 优先覆盖 RDKit 计算的 pKa/logD（如果开启的话）
+        # ro5_violations 和 qed 以 RDKit 计算的为准（已在 rdkit_descriptors 中）
+        final_rd = dict(rd)
+        if chembl_part:
+            if chembl_part.basic_pka and chembl_part.basic_pka.value is not None:
+                final_rd["basic_pka"] = chembl_part.basic_pka.value
+            if chembl_part.acidic_pka and chembl_part.acidic_pka.value is not None:
+                final_rd["acidic_pka"] = chembl_part.acidic_pka.value
+            if chembl_part.logd_7_4 and chembl_part.logd_7_4.value is not None:
+                final_rd["logd_7_4"] = chembl_part.logd_7_4.value
+
+        # 简化版：核心字段从 rdkit_descriptors 提取（去重后的唯一特征）
+        # 保留核心字段是为了向后兼容
         merged = PhysChemProperties(
-            mw=core["mw"],
-            logp=core["logp"],
-            logd_7_4=chembl_part.logd_7_4 if chembl_part else None,
-            tpsa=core["tpsa"],
-            hbd=core["hbd"],
-            hba=core["hba"],
-            rotatable_bonds=core["rotatable_bonds"],
-            aromatic_rings=core["aromatic_rings"],
-            heavy_atoms=core["heavy_atoms"],
-            basic_pka=chembl_part.basic_pka if chembl_part else None,
-            acidic_pka=chembl_part.acidic_pka if chembl_part else None,
-            ro5_violations=core["ro5_violations"],
-            qed=core["qed"],
-            rdkit_descriptors=rd,
+            mw=SourceInfo(value=final_rd.get("MolWt", 0), source="rdkit"),
+            logp=SourceInfo(value=final_rd.get("logP", 0), source="rdkit"),
+            logd_7_4=SourceInfo(value=final_rd.get("logd_7_4"), source="rdkit") if final_rd.get("logd_7_4") else None,
+            tpsa=SourceInfo(value=final_rd.get("topological_polar_surface_area", 0), source="rdkit"),
+            hbd=SourceInfo(value=final_rd.get("NumHDonors", 0), source="rdkit"),
+            hba=SourceInfo(value=final_rd.get("NumHAcceptors", 0), source="rdkit"),
+            rotatable_bonds=SourceInfo(value=final_rd.get("num_rotatable", 0), source="rdkit"),
+            aromatic_rings=SourceInfo(value=final_rd.get("num_aromatic_rings", 0), source="rdkit"),
+            heavy_atoms=SourceInfo(value=final_rd.get("HeavyAtomCount", 0), source="rdkit"),
+            basic_pka=SourceInfo(value=final_rd.get("basic_pka"), source="rdkit") if final_rd.get("basic_pka") else None,
+            acidic_pka=SourceInfo(value=final_rd.get("acidic_pka"), source="rdkit") if final_rd.get("acidic_pka") else None,
+            ro5_violations=SourceInfo(value=final_rd.get("ro5_violations", 0), source="rdkit"),
+            qed=SourceInfo(value=final_rd.get("qed", 0), source="rdkit"),
+            rdkit_descriptors=final_rd,
             engineered_features=eng,
         )
         return normalize_physchem_numeric_core(self._enrich_pka_logd(merged, work))
