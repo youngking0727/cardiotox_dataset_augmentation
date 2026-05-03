@@ -266,12 +266,18 @@ def process_path_a(molecule: Dict[str, Any],
 
     # 获取靶点活性（retrieve 只返回 dict，勿对 dict 解包）
     bioactivity = bioactivity_retriever.retrieve(chembl_id)
+    raw_activities = bioactivity_retriever.get_cached_raw_activities(chembl_id)
 
-    # 获取临床状态 / 文献（路径 A：不传 clinicaltrials_query_name / pubmed_query_name，
-    # M3B/M3C 使用 DIQTA drug_name 与 ChEMBL pref_name 的一致性校验或 pref 回退）
+    # 获取临床状态 / 文献
     drug_name = molecule.get("name", molecule.get("pref_name", chembl_id))
-    clinical = clinical_retriever.retrieve(chembl_id, drug_name=drug_name)
-    literature = literature_retriever.retrieve(chembl_id, drug_name=drug_name)
+    mol_from_cache = physchem_calc.get_cached_molecule(chembl_id)
+    clinical = clinical_retriever.retrieve(chembl_id, drug_name=drug_name, molecule=mol_from_cache)
+    # TODO: 获取文献
+    literature = literature_retriever.retrieve(
+        chembl_id, drug_name=drug_name,
+        molecule=mol_from_cache,
+        activities=raw_activities,
+    )
 
     # 组装证据包
     bundle = assembler.assemble(
@@ -323,39 +329,30 @@ def process_path_b(
 
     logger.info(f"处理路径B分子: {chembl_id}")
 
-    _mol, mol_ok = chembl_client.get_molecule_by_chembl_id(chembl_id)
-    # 相似度检索已完成；理化补全（ChEMBL → RDKit）
     physchem_props = physchem_calc.get_full_properties(chembl_id=chembl_id, smiles=smiles)
+    _mol = physchem_calc.get_cached_molecule(chembl_id)
+    mol_ok = _mol is not None
     bioactivity = bioactivity_retriever.retrieve(chembl_id)
+    raw_activities = bioactivity_retriever.get_cached_raw_activities(chembl_id)
     bio_ok = True
     # 路径 B：相似分子不是「同一药品」，ClinicalTrials/PubMed 以父药（DIQTA）为锚；
     # M3A 仍按子 chembl_id 拉活性；M3B drug 记录仍按子 chembl_id。
     child_pref = ""
     if _mol and isinstance(_mol, dict):
         child_pref = (str(_mol.get("pref_name") or "")).strip()
-    parent_dn = (parent_drug_name or "").strip()
-    fallback_name = parent_dn or child_pref or chembl_id
-
-    ct_list: List[str] = []
-    for nm in (child_pref, parent_dn):
-        s = (nm or "").strip()
-        if s and s not in ct_list:
-            ct_list.append(s)
+    fallback_name = child_pref or chembl_id
 
     clinical = clinical_retriever.retrieve(
         chembl_id,
         drug_name=fallback_name,
-        path_b_clinicaltrials_names=ct_list if ct_list else None,
-        clinicaltrials_query_name=None if ct_list else (parent_dn or None),
+        molecule=_mol,
     )
     literature = literature_retriever.retrieve(
         chembl_id,
         fallback_name,
         max_pubmed=40,
-        path_b=True,
-        child_pref_name=child_pref,
-        parent_drug_name=parent_dn,
-        pubmed_query_name=parent_dn or None,
+        molecule=_mol,
+        activities=raw_activities,
     )
 
     retrieval_incomplete = (

@@ -630,39 +630,10 @@ class ChEMBLClient:
                 chunk = _extract_named_list(data, "activities")
                 acc.extend(_normalize_dict_list(chunk, "activity"))
 
-            # 按年份降序（最新优先），再按 IC50/Ki 值升序（最低优先）
-            # 先按 target_chembl_id 分组，每组取最优
-            if not acc:
-                return acc, True
-
-            from collections import defaultdict
-
-            by_target: defaultdict = defaultdict(list)
-            for a in acc:
-                tid = a.get("target_chembl_id", "")
-                by_target[tid].append(a)
-
-            filtered: List[Dict[str, Any]] = []
-            for tid, acts in by_target.items():
-                # 按年份降序，值升序排序
-                acts_sorted = sorted(
-                    acts,
-                    key=lambda x: (
-                        -(x.get("document_year") or 0),  # 年份降序
-                        float(x.get("standard_value") or float("inf")),  # 值升序
-                    ),
-                )
-                if acts_sorted:
-                    filtered.append(acts_sorted[0])
-                    logger.debug(
-                        "选择最优活性记录: target=%s, year=%s, value=%s %s",
-                        tid,
-                        acts_sorted[0].get("document_year"),
-                        acts_sorted[0].get("standard_value"),
-                        acts_sorted[0].get("standard_units"),
-                    )
-
-            return filtered, True
+            # 不再做 per-target 最优截断：所有经过 API 级别筛选的记录都保留，
+            # 每条记录有不同的 document_chembl_id → 不同的论文；
+            # M3A 内部自行选最优做证据判定。
+            return acc, True
 
         if target_chembl_ids:
             merged: List[Dict[str, Any]] = []

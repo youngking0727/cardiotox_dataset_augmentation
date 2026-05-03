@@ -274,6 +274,10 @@ class PhysChemCalculator:
         self.cache = get_global_cache()
         self._chembl_molecule_cache: Dict[str, Dict[str, Any]] = {}  # 缓存 molecule 数据，避免重复 API 调用
 
+    def get_cached_molecule(self, chembl_id: str) -> Optional[Dict[str, Any]]:
+        """获取缓存的 molecule 数据（需先调用过 get_full_properties 或 calculate_from_chembl）"""
+        return self._chembl_molecule_cache.get(chembl_id)
+
     # ------------------------------------------------------------------ #
     # ChEMBL
     # ------------------------------------------------------------------ #
@@ -281,6 +285,11 @@ class PhysChemCalculator:
         cache_key = f"physchem_chembl_{chembl_id}"
         cached = self.cache.get(cache_key)
         if cached is not None:
+            # 文件缓存命中时，也要填充 _chembl_molecule_cache（供 M3B/M3C 使用）
+            if chembl_id not in self._chembl_molecule_cache:
+                mol, _ = self.chembl_client.get_molecule_by_chembl_id(chembl_id)
+                if mol and isinstance(mol, dict):
+                    self._chembl_molecule_cache[chembl_id] = mol
             return normalize_physchem_numeric_core(cached)
 
         logger.info("从ChEMBL获取理化性质: %s", chembl_id)

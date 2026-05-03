@@ -37,6 +37,7 @@ class BioactivityRetriever:
         self.chembl_client = chembl_client or ChEMBLClient()
         self.targets = targets or DEFAULT_TARGETS
         self.cache = get_global_cache()
+        self._raw_activities_cache: Dict[str, List[Dict[str, Any]]] = {}
 
     def _canonical_measurement_type(self, raw: Any) -> Optional[str]:
         r = get_evidence_rules()
@@ -54,6 +55,12 @@ class BioactivityRetriever:
         cache_key = f"bioactivity_{chembl_id}"
         cached = self.cache.get(cache_key)
         if cached:
+            # 缓存命中时也要填充 _raw_activities_cache（供 M3C 使用）
+            if chembl_id not in self._raw_activities_cache:
+                raw = self.chembl_client.get_activities(chembl_id, target_chembl_ids or [t.chembl_id for t in self.targets])
+                activities = raw[0] if isinstance(raw, tuple) else raw
+                if isinstance(activities, list):
+                    self._raw_activities_cache[chembl_id] = list(activities)
             logger.info(
                 "M3A cache hit | chembl_id=%s | keys=%s",
                 chembl_id,
@@ -66,12 +73,15 @@ class BioactivityRetriever:
         if target_chembl_ids is None:
             target_chembl_ids = [t.chembl_id for t in self.targets]
 
+        # TODO: 这里
         raw = self.chembl_client.get_activities(chembl_id, target_chembl_ids)
         raw_is_tuple = isinstance(raw, tuple)
         activities = raw[0] if isinstance(raw, tuple) else raw
         if not isinstance(activities, list):
             activities = []
         raw_count = len(activities)
+        # 保存 raw activities 供 M3C 文献服务使用（含 document_chembl_id）
+        self._raw_activities_cache[chembl_id] = list(activities)
 
         _hdr = (
             f"M3A raw fetch | chembl_id={chembl_id} | raw_count={raw_count} | "
@@ -171,6 +181,10 @@ class BioactivityRetriever:
         if result:
             self.cache.set(cache_key, result)
         return result
+
+    def get_cached_raw_activities(self, chembl_id: str) -> List[Dict[str, Any]]:
+        """获取已缓存的 raw activities（含 document_chembl_id），供 M3C 文献服务使用"""
+        return self._raw_activities_cache.get(chembl_id, [])
 
     @staticmethod
     def _ensure_target(
