@@ -120,6 +120,62 @@ class TestPathBRetention(unittest.TestCase):
         self.assertFalse(r.should_keep)
         self.assertIsNone(r.evidence_priority)
 
+    def test_parent_anchored_literature_alone_does_not_retain_analog(self):
+        """无名相似物：仅父药锚定文献不应单独触发保留。"""
+        art = PubMedArticle(
+            pmid="9",
+            title="Dofetilide QT prolongation",
+            abstract="",
+            mesh_terms=[],
+            is_review=False,
+            relevance_keywords_hit=["QT"],
+            molecule_mentioned=False,
+            relevance_bucket=EVIDENCE_PRIORITY_1,
+            literature_attribution="parent_anchored",
+        )
+        le = LiteratureEvidence(
+            pubmed_articles=[art],
+            patents=[],
+            priority_1_article_count=1,
+            path_b_literature_scope="structural_analog_only",
+            candidate_has_drug_name=False,
+            candidate_literature_usable_for_reasoning=False,
+            priority_1_parent_anchored_count=1,
+            priority_1_candidate_attributed_count=0,
+        )
+        r = EvidenceSufficiencyJudge().judge_retention_for_path_b(
+            {}, _clinical_empty(), le
+        )
+        self.assertFalse(r.should_keep)
+
+    def test_salt_form_literature_not_candidate_level_retention(self):
+        """盐型：父药文献可展示，但不作为 candidate 级文献保留依据。"""
+        art = PubMedArticle(
+            pmid="10",
+            title="Thioridazine hydrochloride cardiac effects",
+            abstract="",
+            mesh_terms=[],
+            is_review=False,
+            relevance_keywords_hit=["QT"],
+            molecule_mentioned=True,
+            relevance_bucket=EVIDENCE_PRIORITY_1,
+            literature_attribution="salt_form_inherited",
+        )
+        le = LiteratureEvidence(
+            pubmed_articles=[art],
+            patents=[],
+            priority_1_article_count=1,
+            path_b_literature_scope="salt_form_of_parent",
+            candidate_has_drug_name=True,
+            candidate_literature_usable_for_reasoning=False,
+            priority_1_parent_anchored_count=0,
+            priority_1_candidate_attributed_count=0,
+        )
+        r = EvidenceSufficiencyJudge().judge_retention_for_path_b(
+            {}, _clinical_empty(), le
+        )
+        self.assertFalse(r.should_keep)
+
     def test_retrieval_incomplete_is_out_of_scope(self):
         """
         retrieval_incomplete 由 process_path_b 在调用 retention 之前返回；

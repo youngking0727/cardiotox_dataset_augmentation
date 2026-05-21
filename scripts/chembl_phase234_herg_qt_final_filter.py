@@ -8,7 +8,7 @@ Purpose:
 1. Input:
   -all_activity_records_classified.csv
 
-2. Output:
+2. Output (default: data/output/phase234/):
    - human hERG/KCNH2 assay records
    - human/non-animal QT assay records
    - excluded animal QT records
@@ -832,8 +832,8 @@ def main():
     )
     parser.add_argument(
         "--outdir",
-        default="data/output",
-        help="Output directory",
+        default="data/output/phase234",
+        help="Output directory (default: data/output/phase234)",
     )
     parser.add_argument(
         "--no-tests",

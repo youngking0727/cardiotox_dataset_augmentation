@@ -55,10 +55,19 @@ pipeline:
   # 文献检索配置
   literature:
     max_pubmed_articles: 30
+    # 每篇文献最多保留的 context 条数（fulltext/abstract 窗口）
+    max_contexts_per_article: 30
     # 是否过滤综述文章
     filter_reviews: false
     # 是否要求分子名称必须出现在摘要中
     require_molecule_mention: true
+    # diqta_mcp_server（uvicorn src.api:app）— 启用后 M3C 走 MCP 文献流水线
+    mcp:
+      enabled: true
+      base_url: "http://127.0.0.1:8000"
+      top_n: 30
+      window: 500
+      timeout_sec: 600
 
   # ClinicalTrials配置
   clinicaltrials:

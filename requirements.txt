@@ -8,6 +8,7 @@ cairosvg>=2.7.0
 biopython>=1.81
 requests>=2.31.0
 pandas>=2.0.0
+matplotlib>=3.7.0
 pydantic>=2.0.0
 tqdm>=4.65.0
 loguru>=0.7.0

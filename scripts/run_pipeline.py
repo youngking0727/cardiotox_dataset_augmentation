@@ -51,6 +51,14 @@ def load_config(config_file: str = "config/pipeline.yaml") -> Dict[str, Any]:
     return data.get("pipeline", data)
 
 
+def _deep_merge_config(base: Dict[str, Any], override: Dict[str, Any]) -> None:
+    for key, val in override.items():
+        if isinstance(val, dict) and isinstance(base.get(key), dict):
+            _deep_merge_config(base[key], val)
+        else:
+            base[key] = val
+
+
 def load_diqta_data(diqta_file: str) -> List[Dict[str, Any]]:
     """加载 DIQTA 表（Excel/CSV），列名兼容常见导出。"""
     import pandas as pd
@@ -190,7 +198,7 @@ def enrich_drug_names_from_chembl(
     """
     for m in molecules:
         cid = (m.get("chembl_id") or "").strip()
-        excel_name = (m.get("name") or "").strip()
+        excel_name = (m.get("name") or "").replace("\xa0", " ").strip()
         if not cid:
             m["drug_name"] = excel_name
             continue
@@ -268,13 +276,22 @@ def process_path_a(molecule: Dict[str, Any],
     bioactivity = bioactivity_retriever.retrieve(chembl_id)
     raw_activities = bioactivity_retriever.get_cached_raw_activities(chembl_id)
 
-    # 获取临床状态 / 文献
-    drug_name = molecule.get("name", molecule.get("pref_name", chembl_id))
+    # 获取临床状态 / 文献（路径 A：enrich 后的 drug_name 优先；文献服务使用缓存的 molecule/activities）
+    drug_name = (
+        molecule.get("drug_name")
+        or molecule.get("chembl_pref_name")
+        or molecule.get("name")
+        or chembl_id
+    )
+    if isinstance(drug_name, str):
+        drug_name = drug_name.strip()
+    else:
+        drug_name = str(chembl_id)
     mol_from_cache = physchem_calc.get_cached_molecule(chembl_id)
     clinical = clinical_retriever.retrieve(chembl_id, drug_name=drug_name, molecule=mol_from_cache)
-    # TODO: 获取文献
     literature = literature_retriever.retrieve(
-        chembl_id, drug_name=drug_name,
+        chembl_id,
+        drug_name=drug_name,
         molecule=mol_from_cache,
         activities=raw_activities,
     )
@@ -354,6 +371,17 @@ def process_path_b(
         molecule=_mol,
         activities=raw_activities,
     )
+    from rules.path_b_literature_attribution import annotate_path_b_literature_evidence
+
+    synonyms = []
+    if _mol and isinstance(_mol, dict):
+        synonyms = _mol.get("molecule_synonyms") or []
+    literature = annotate_path_b_literature_evidence(
+        literature,
+        child_pref_name=child_pref,
+        parent_drug_name=parent_dn,
+        molecule_synonyms=synonyms if isinstance(synonyms, list) else [],
+    )
 
     retrieval_incomplete = (
         not mol_ok
@@ -421,22 +449,42 @@ def process_path_b(
     meta["priority_1_article_count"] = literature.priority_1_article_count
     meta["priority_2_article_count"] = literature.priority_2_article_count
     meta["priority_3_article_count"] = literature.priority_3_article_count
+    meta["path_b_literature_scope"] = literature.path_b_literature_scope
+    meta["literature_query_anchor"] = literature.literature_query_anchor
+    meta["candidate_has_drug_name"] = literature.candidate_has_drug_name
+    meta["candidate_literature_usable_for_reasoning"] = (
+        literature.candidate_literature_usable_for_reasoning
+    )
+    meta["priority_1_parent_anchored_literature_count"] = (
+        literature.priority_1_parent_anchored_count
+    )
+    meta["priority_1_candidate_literature_count"] = (
+        literature.priority_1_candidate_attributed_count
+    )
+    meta["priority_2_parent_anchored_literature_count"] = (
+        literature.priority_2_parent_anchored_count
+    )
+    meta["priority_2_candidate_literature_count"] = (
+        literature.priority_2_candidate_attributed_count
+    )
 
     has_herg = bool(
         bioactivity.get("hERG") and bioactivity["hERG"].measurements
     )
     logger.info(
         "PATH_B_DECISION | chembl_id={} | parent={} | keep=True | priority={} | label={} | "
-        "reasons={} | has_hERG_measurement={} | p1={} p2={} p3={} | direct_qt_clinical_hit={} | status=kept",
+        "reasons={} | has_hERG_measurement={} | lit_scope={} | p1_total={} p1_parent={} "
+        "p1_candidate={} | direct_qt_clinical_hit={} | status=kept",
         chembl_id,
         parent_chembl_id,
         retention.evidence_priority,
         label_value,
         retention.reason_codes,
         has_herg,
+        literature.path_b_literature_scope,
         literature.priority_1_article_count,
-        literature.priority_2_article_count,
-        literature.priority_3_article_count,
+        literature.priority_1_parent_anchored_count,
+        literature.priority_1_candidate_attributed_count,
         getattr(clinical, "direct_qt_clinical_hit", False),
     )
     return bundle_dict, "kept"
@@ -447,10 +495,12 @@ def run_pipeline(diqta_file: str = "data/DIQTA阴性样本为主划分.xlsx",
                 config_file: str = "config/pipeline.yaml",
                 max_molecules: Optional[int] = None,
                 sample_size: int = 5,
+                skip: int = 0,
                 diqta_chembl_json: str = "data/output/DIQTA_Chembl.json",
                 path_a_only: bool = False,
                 path_b_only: bool = False,
-                label_filter: Optional[str] = None):
+                label_filter: Optional[str] = None,
+                config_override: Optional[Dict[str, Any]] = None):
     """
     运行完整的数据处理流程
 
@@ -459,7 +509,8 @@ def run_pipeline(diqta_file: str = "data/DIQTA阴性样本为主划分.xlsx",
         output_file: 输出文件路径
         config_file: 配置文件路径
         max_molecules: 最大处理分子数（用于测试）
-        sample_size: 样本数量（用于快速测试）
+        sample_size: 样本数量（用于快速测试；0 表示不截断）
+        skip: 跳过前 N 条 DIQTA 记录（在 label 筛选之后、sample 截断之前）
         diqta_chembl_json: 路径 A 结束后写入的父分子表（含 drug_name），默认与 evidence 同目录
         path_a_only: 仅跑路径 A（DIQTA 原始分子证据包）
         path_b_only: 仅跑路径 B（相似扩展）；仍加载 DIQTA、解析 ChEMBL ID，并做父分子 drug_name 补全后跑 M1→相似分子流水线
@@ -467,6 +518,8 @@ def run_pipeline(diqta_file: str = "data/DIQTA阴性样本为主划分.xlsx",
     """
     # 加载配置
     config = load_config(config_file)
+    if config_override:
+        _deep_merge_config(config, config_override)
     apply_ncbi_settings_from_config(config)
     setup_logging(config.get("logging", {}).get("file"))
 
@@ -510,7 +563,26 @@ def run_pipeline(diqta_file: str = "data/DIQTA阴性样本为主划分.xlsx",
     physchem_calc = PhysChemCalculator(chembl_client)
     bioactivity_retriever = BioactivityRetriever(chembl_client)
     clinical_retriever = ClinicalStatusRetriever(chembl_client, clinicaltrials_client)
-    literature_retriever = LiteratureRetriever(chembl_client, pubmed_client)
+    lit_cfg = (config.get("literature") or {})
+    mcp_cfg = lit_cfg.get("mcp") or {}
+    mcp_enabled = bool(mcp_cfg.get("enabled"))
+    mcp_base = (mcp_cfg.get("base_url") or "").strip() if mcp_enabled else ""
+    literature_retriever = LiteratureRetriever(
+        chembl_client,
+        pubmed_client,
+        mcp_base_url=mcp_base or None,
+        mcp_top_n=int(mcp_cfg.get("top_n", lit_cfg.get("max_pubmed_articles", 30))),
+        mcp_window=int(mcp_cfg.get("window", 500)),
+        mcp_timeout_sec=float(mcp_cfg.get("timeout_sec", 600)),
+        max_pubmed_articles=int(lit_cfg.get("max_pubmed_articles", 30)),
+        max_contexts_per_article=int(lit_cfg.get("max_contexts_per_article", 30)),
+        require_molecule_mention=bool(lit_cfg.get("require_molecule_mention", True)),
+        filter_reviews=bool(lit_cfg.get("filter_reviews", False)),
+    )
+    if mcp_base:
+        logger.info(f"M3C 文献检索: DIQTA MCP @ {mcp_base}")
+    else:
+        logger.info("M3C 文献检索: 本地 PubMed 客户端")
     assembler = EvidenceBundleAssembler(chembl_client)
     sufficiency_judge = EvidenceSufficiencyJudge(literature_retriever)
     conflict_detector = ConflictDetector()
@@ -531,7 +603,10 @@ def run_pipeline(diqta_file: str = "data/DIQTA阴性样本为主划分.xlsx",
             logger.error("label 筛选后无数据，请检查 --label 与表中 label 列是否一致")
             return
 
-    # 用于测试：只处理少量样本（在 label 筛选之后）
+    # 用于测试：跳过前 N 条后取 sample 条（在 label 筛选之后）
+    if skip > 0:
+        diqta_molecules = diqta_molecules[skip:]
+        logger.info(f"跳过前 {skip} 条，剩余 {len(diqta_molecules)} 个待处理分子")
     if sample_size > 0:
         diqta_molecules = diqta_molecules[:sample_size]
         logger.info(f"测试模式：只处理 {len(diqta_molecules)} 个样本")
@@ -555,6 +630,9 @@ def run_pipeline(diqta_file: str = "data/DIQTA阴性样本为主划分.xlsx",
     results = []
     discarded = []
     retry_candidates: List[Dict[str, Any]] = []
+
+    # 路径 A/B 的 M3B/M3C 依赖 ChEMBL pref_name 作为 drug_name，须在路径 A 之前补全
+    enrich_drug_names_from_chembl(diqta_molecules, chembl_client)
 
     if not path_b_only:
         logger.info("-" * 40)
@@ -589,8 +667,7 @@ def run_pipeline(diqta_file: str = "data/DIQTA阴性样本为主划分.xlsx",
     else:
         logger.info("path_b_only=True：跳过路径 A（不生成 DIQTA 原始证据包）")
 
-    # 父分子 drug_name（ChEMBL pref_name 优先）并落盘；路径 B 依赖 molecule['drug_name']
-    enrich_drug_names_from_chembl(diqta_molecules, chembl_client)
+    # 落盘父分子 ChEMBL 对齐表（drug_name 已在路径 A 前 enrich）
     diqta_chembl_path = Path(__file__).parent.parent / diqta_chembl_json
     save_diqta_chembl_json(diqta_chembl_path, diqta_molecules, diqta_file)
 
@@ -630,8 +707,20 @@ def run_pipeline(diqta_file: str = "data/DIQTA阴性样本为主划分.xlsx",
                     })
                     continue
 
-                # 处理每个相似分子
+                # 处理每个相似分子（Tanimoto≥threshold；已在 DIQTA 的跳过）
+                sim_threshold = similarity_retriever.threshold
                 for similar in similarity_result.similar_molecules:
+                    if similar.already_in_diqta:
+                        logger.debug(
+                            f"路径B 跳过（已在 DIQTA）: {similar.chembl_id} parent={chembl_id}"
+                        )
+                        continue
+                    if similar.tanimoto < sim_threshold:
+                        logger.debug(
+                            f"路径B 跳过（Tanimoto={similar.tanimoto:.4f} < {sim_threshold}）: "
+                            f"{similar.chembl_id} parent={chembl_id}"
+                        )
+                        continue
                     try:
                         similar_data = {
                             "chembl_id": similar.chembl_id,
@@ -725,6 +814,12 @@ def main():
                        help="配置文件路径")
     parser.add_argument("--sample", type=int, default=5,
                        help="样本数量（0表示处理全部）")
+    parser.add_argument(
+        "--skip",
+        type=int,
+        default=0,
+        help="跳过前 N 条 DIQTA 记录（在 --label 筛选之后）；例如 --skip 2 --sample 2 处理第 3、4 条",
+    )
     parser.add_argument("--max", type=int, default=None,
                        help="最大处理分子数")
     parser.add_argument(
@@ -750,8 +845,32 @@ def main():
         metavar="VALUE",
         help="仅保留 label 列等于该值的行（如 0、1）；在 --sample 截断之前筛选，便于只跑某类标签的前 N 条",
     )
+    parser.add_argument(
+        "--literature-mcp-url",
+        type=str,
+        default=None,
+        help="覆盖 config 中 literature.mcp.base_url（需 literature.mcp.enabled=true）",
+    )
+    parser.add_argument(
+        "--no-literature-mcp",
+        action="store_true",
+        help="禁用 DIQTA MCP 文献，改用本地 PubMed 客户端",
+    )
 
     args = parser.parse_args()
+
+    config_override: Optional[Dict[str, Any]] = None
+    if args.no_literature_mcp:
+        config_override = {"literature": {"mcp": {"enabled": False}}}
+    elif args.literature_mcp_url:
+        config_override = {
+            "literature": {
+                "mcp": {
+                    "enabled": True,
+                    "base_url": args.literature_mcp_url.strip(),
+                }
+            }
+        }
 
     run_pipeline(
         diqta_file=args.diqta,
@@ -759,10 +878,12 @@ def main():
         config_file=args.config,
         max_molecules=args.max,
         sample_size=args.sample,
+        skip=args.skip,
         diqta_chembl_json=args.diqta_chembl_json,
         path_a_only=args.path_a_only,
         path_b_only=args.path_b_only,
         label_filter=args.label,
+        config_override=config_override,
     )
 
 

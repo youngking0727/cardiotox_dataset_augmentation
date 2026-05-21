@@ -44,6 +44,17 @@ from rules.cardiotox_evidence_rules import (  # noqa: E402
 DEFAULT_INPUT = PROJECT_ROOT / "data/output/all_activity_records_classified.csv"
 DEFAULT_OUTPUT = PROJECT_ROOT / "data/output/M3_filter_result.csv"
 DEFAULT_SUMMARY = PROJECT_ROOT / "data/output/M3_filter_summary.csv"
+DEFAULT_M3AB_OUTPUT = PROJECT_ROOT / "data/output/M3_filter_m3a_m3b_deduped.csv"
+DEFAULT_M3AB_SUMMARY = PROJECT_ROOT / "data/output/M3_filter_m3a_m3b_summary.csv"
+
+DEDUPE_SUBSET = [
+    "molecule_chembl_id",
+    "assay_chembl_id",
+    "standard_type",
+    "standard_value",
+    "standard_units",
+    "document_chembl_id",
+]
 
 M3A_TARGET_MAP = {t.chembl_id: t.name for t in DEFAULT_TARGETS}
 
@@ -316,6 +327,74 @@ def run(
     print(f"Saved: {summary_path}")
 
 
+def _as_bool_series(s: pd.Series) -> pd.Series:
+    return s.astype(str).str.strip().str.lower().isin(["true", "1", "yes", "y", "t"])
+
+
+def extract_m3a_m3b_deduped(
+    filter_result_path: Path,
+    output_path: Path,
+    summary_path: Path,
+) -> pd.DataFrame:
+    """从 M3_filter_result.csv 取出 M3-A / M3-B 通过记录并去重。"""
+    df = pd.read_csv(filter_result_path, dtype=str, encoding="utf-8-sig").fillna("")
+
+    m3a_hit = _as_bool_series(df["m3a_pass"]) if "m3a_pass" in df.columns else pd.Series(False, index=df.index)
+    m3b_hit = _as_bool_series(df["m3b_pass"]) if "m3b_pass" in df.columns else pd.Series(False, index=df.index)
+    sub = df[m3a_hit | m3b_hit].copy()
+
+    before = len(sub)
+    dup_activity = int(sub["activity_id"].duplicated().sum()) if "activity_id" in sub.columns and before else 0
+
+    if "activity_id" in sub.columns:
+        sub = sub.drop_duplicates(subset=["activity_id"], keep="first")
+
+    dedupe_cols = [c for c in DEDUPE_SUBSET if c in sub.columns]
+    before_assay_dedupe = len(sub)
+    if dedupe_cols:
+        sub = sub.drop_duplicates(subset=dedupe_cols, keep="first")
+
+    def _layers(row: pd.Series) -> str:
+        parts = []
+        if _as_bool_series(pd.Series([row.get("m3a_pass", "")])).iloc[0]:
+            parts.append("m3a")
+        if _as_bool_series(pd.Series([row.get("m3b_pass", "")])).iloc[0]:
+            parts.append("m3b")
+        return ";".join(parts)
+
+    sub["m3ab_source_layers"] = sub.apply(_layers, axis=1)
+
+    sub.to_csv(output_path, index=False, encoding="utf-8-sig")
+
+    summary_rows = [
+        {"metric": "rows_in_M3_filter_result", "count": len(df)},
+        {"metric": "rows_m3a_or_m3b_before_dedupe", "count": before},
+        {"metric": "duplicate_activity_id_before_dedupe", "count": dup_activity},
+        {"metric": "rows_after_activity_id_dedupe", "count": before_assay_dedupe},
+        {"metric": "rows_after_assay_key_dedupe", "count": len(sub)},
+        {"metric": "rows_m3a_only", "count": int((sub["m3ab_source_layers"] == "m3a").sum())},
+        {"metric": "rows_m3b_only", "count": int((sub["m3ab_source_layers"] == "m3b").sum())},
+        {
+            "metric": "rows_m3a_and_m3b",
+            "count": int(
+                (sub["m3ab_source_layers"].str.contains("m3a") & sub["m3ab_source_layers"].str.contains("m3b")).sum()
+            )
+            if len(sub)
+            else 0,
+        },
+        {"metric": "unique_molecules", "count": int(sub["molecule_chembl_id"].nunique()) if len(sub) else 0},
+    ]
+
+    summary_df = pd.DataFrame(summary_rows)
+    summary_df.to_csv(summary_path, index=False, encoding="utf-8-sig")
+
+    print("\n========== M3-A / M3-B Extract & Dedupe ==========")
+    print(summary_df.to_string(index=False))
+    print(f"\nSaved: {output_path}")
+    print(f"Saved: {summary_path}")
+    return sub
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Apply M3-A/B/C filters to classified ChEMBL activities")
     parser.add_argument("--input", type=str, default=str(DEFAULT_INPUT))
@@ -323,7 +402,22 @@ def main() -> None:
     parser.add_argument("--summary", type=str, default=str(DEFAULT_SUMMARY))
     parser.add_argument("--chunk-size", type=int, default=50_000)
     parser.add_argument("--max-rows", type=int, default=None, help="Debug: limit rows scanned")
+    parser.add_argument(
+        "--extract-m3ab-only",
+        action="store_true",
+        help="Only extract M3-A/M3-B rows from existing M3_filter_result.csv and dedupe",
+    )
+    parser.add_argument("--m3ab-output", type=str, default=str(DEFAULT_M3AB_OUTPUT))
+    parser.add_argument("--m3ab-summary", type=str, default=str(DEFAULT_M3AB_SUMMARY))
     args = parser.parse_args()
+
+    if args.extract_m3ab_only:
+        extract_m3a_m3b_deduped(
+            filter_result_path=Path(args.output),
+            output_path=Path(args.m3ab_output),
+            summary_path=Path(args.m3ab_summary),
+        )
+        return
 
     run(
         input_path=Path(args.input),
