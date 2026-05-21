@@ -21,13 +21,10 @@ class ClinicalTrialsClient:
         "QT interval",
         "QTc",
         "long QT",
-        "torsades",
-        "torsade de pointes",
+        "torsades de pointes",
         "hERG",
         "KCNH2",
-        "prolonged QT",
-        "QT prolonged",
-        "electrocardiogram QT",
+        "electrocardiogram",
     ]
 
     # 标题/摘要判定 qt_related=True：必须与查询同级的「强相关」短语（不用单独 arrhythmia/cardiac）
@@ -99,7 +96,8 @@ class ClinicalTrialsClient:
             fields = ["protocolSection.identificationModule",
                      "protocolSection.statusModule",
                      "protocolSection.descriptionModule",
-                     "protocolSection.conditionsModule"]
+                     "protocolSection.conditionsModule",
+                     "protocolSection.outcomesModule"]
 
         params = {
             "query.term": query,
@@ -151,6 +149,7 @@ class ClinicalTrialsClient:
             identification = study.get("identificationModule", {})
             status = study.get("statusModule", {})
             description = study.get("descriptionModule", {})
+            outcomes = study.get("outcomesModule", {})
 
             nct_id = identification.get("nctId", "")
             title = identification.get("briefTitle", "")
@@ -163,16 +162,34 @@ class ClinicalTrialsClient:
             # 试验状态
             status_str = status.get("overallStatus", "Unknown")
 
+            # 检查 title/summary 是否含 QT 相关词
             text = (title + " " + summary).lower()
-            qt_related = self._text_matches_strict_qt(text)
+            qt_related_title = self._text_matches_strict_qt(text)
 
-            if qt_related:
+            # 检查 outcomesModule 中是否有 QT 相关的主要终点
+            qt_related_outcome = False
+            qt_outcome_measure = None
+            if outcomes:
+                primary_outcomes = outcomes.get("primaryOutcomes", [])
+                for outcome in primary_outcomes:
+                    measure = outcome.get("measure", "").lower()
+                    desc = outcome.get("description", "").lower()
+                    if self._text_matches_strict_qt(measure) or self._text_matches_strict_qt(desc):
+                        qt_related_outcome = True
+                        qt_outcome_measure = outcome.get("measure", "")
+                        break
+
+            # 只要 title/summary 或 outcomes 任一相关就保留
+            if qt_related_title or qt_related_outcome:
                 trials.append({
                     "nct_id": nct_id,
                     "title": title,
                     "status": status_str,
                     "qt_related": True,
-                    "summary": summary[:500] if summary else ""  # 限制摘要长度
+                    "qt_related_title": qt_related_title,
+                    "qt_related_outcome": qt_related_outcome,
+                    "qt_outcome_measure": qt_outcome_measure,
+                    "summary": summary if summary else ""
                 })
 
         return trials

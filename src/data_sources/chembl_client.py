@@ -408,105 +408,49 @@ class ChEMBLClient:
             logger.warning("get_drug_by_name: 空 drug_name 且无 SMILES")
             return None, True
 
+        # 清理药名：去除括号及其内容、特殊字符，避免 ChEMBL filter 查询失败
+        # 例如 "Thioridazine (Melleril)" -> "Thioridazine"
+        import re
+        pn_clean = re.sub(r'\s*\([^)]*\)\s*', '', pn).strip()
+        # 如果清理后为空，保留原始值
+        pn_for_query = pn_clean if pn_clean else pn
+
         id_prev = _pref_name_log_preview(pn) if pn else _smiles_log_preview(sm)
 
-        # 1) drug 端点（通用名/商品名与 drug.pref_name 对齐时）
-        if pn:
-            data, ok = self._request_json(
-                "drug.json",
-                params={
-                    "pref_name__iexact": pn,
-                    "limit": 10,
-                    "format": "json",
-                },
-                resource_name="drug.json(pref_name__iexact)",
-                identifier=id_prev,
-            )
-            if ok:
-                drugs = _extract_drugs_payload(data)
-            else:
-                logger.warning(
-                    "ChEMBL drug.json 请求失败，跳过 drug 层并继续尝试 molecule | %s",
-                    id_prev,
-                )
-                drugs = []
-            for dr in drugs:
-                mid = dr.get("molecule_chembl_id")
-                if not mid:
-                    continue
-                # drug 层必须与查询名一致（避免无效 filter 返回无关 drug）
-                if not _row_pref_name_matches_icontains(
-                    {"pref_name": dr.get("pref_name")}, pn
-                ):
-                    continue
-                mol, ok_m = self.get_molecule_by_chembl_id(str(mid))
-                if not ok_m:
-                    return {}, False
-                if mol:
-                    logger.info(
-                        "ChEMBL 命中: drug.json pref_name__iexact -> %s",
-                        mid,
-                    )
-                    return mol, True
-
-            # 仅使用 ChEMBL 文档中存在的 molecule filter；未知参数会被忽略并返回「全表前几
-            # 条」→ 曾导致所有查询都命中同一条（如 CHEMBL2）。下面每条结果必须与本行 pref/同义词
-            # 与查询字符串校验通过才采纳。
-            syn_molecule_filters: List[str] = [
-                "pref_name__iexact",
-                "molecule_synonyms__molecule_synonym__iexact",
-                "molecule_synonyms__synonym__iexact",
-            ]
-            for fk in syn_molecule_filters:
-                rows, ok_f = self._try_molecule_filter(
-                    fk,
-                    {fk: pn},
-                    id_prev,
-                )
-                if not ok_f:
-                    logger.debug(
-                        "ChEMBL molecule 层 %s 请求失败或 filter 不支持，尝试下一层",
-                        fk,
-                    )
-                    continue
-                if not rows:
-                    continue
-                for row in rows:
-                    if fk == "pref_name__iexact":
-                        if _row_pref_name_matches_iexact(row, pn):
-                            logger.info(
-                                "ChEMBL 命中: molecule.json pref_name__iexact（已校验）"
-                            )
-                            return dict(row), True
-                    else:
-                        if (
-                            _row_synonym_matches_query(row, pn)
-                            or _row_pref_name_matches_iexact(row, pn)
-                            or _row_pref_name_matches_icontains(row, pn)
-                        ):
-                            logger.info(
-                                "ChEMBL 命中: molecule.json %s（已校验）",
-                                fk,
-                            )
-                            return dict(row), True
-
-            rows_ic, ok_ic = self._try_molecule_filter(
-                "pref_icontains",
-                {"pref_name__icontains": pn},
+        # 1) 先用 molecule_synonyms（商品名）查询
+        trade_name_filters: List[str] = [
+            "molecule_synonyms__molecule_synonym__iexact",
+            "molecule_synonyms__synonyms__iexact",
+        ]
+        found_via_trade_name = False
+        for fk in trade_name_filters:
+            rows, ok_f = self._try_molecule_filter(
+                fk,
+                {fk: pn_for_query},
                 id_prev,
             )
-            if not ok_ic:
-                return {}, False
-            if rows_ic:
-                for row in rows_ic:
-                    if _row_pref_name_matches_icontains(row, pn):
-                        logger.info(
-                            "ChEMBL 命中: molecule.json pref_name__icontains（已校验）"
-                        )
-                        return dict(row), True
+            if not ok_f:
+                continue
+            if not rows:
+                continue
+            for row in rows:
+                if (
+                    _row_synonym_matches_query(row, pn)
+                    or _row_pref_name_matches_iexact(row, pn)
+                    or _row_pref_name_matches_icontains(row, pn)
+                ):
+                    logger.info(
+                        "ChEMBL 命中: molecule.json %s（商品名）-> %s",
+                        fk,
+                        row.get("molecule_chembl_id"),
+                    )
+                    found_via_trade_name = True
+                    return dict(row), True
 
+        if pn and not found_via_trade_name:
             logger.warning(
-                f"ChEMBL 按药名未命中 drug/molecule 各层 | drug_name={id_prev!r}"
+                "ChEMBL 商品名未命中，将尝试 SMILES 查询 | drug_name=%r",
+                id_prev,
             )
 
         if sm:
@@ -656,14 +600,18 @@ class ChEMBLClient:
         identifier = chembl_id
 
         def fetch_page(
-            base_params: Dict[str, Any]
+            base_params: Dict[str, Any],
+            standard_types: Optional[List[str]] = None,
         ) -> Tuple[List[Dict[str, Any]], bool]:
             acc: List[Dict[str, Any]] = []
             off = 0
             limit = 1000
-            while True:
+            # 分两次查询：IC50 和 Ki
+            types_to_query = standard_types or ["IC50", "Ki"]
+            for stype in types_to_query:
                 params = {
                     **base_params,
+                    "standard_type": stype,
                     "limit": limit,
                     "offset": off,
                     "format": "json",
@@ -678,12 +626,13 @@ class ChEMBLClient:
                     logger.warning(
                         f"ChEMBL activity.json 不可用，使用已拉取或空活性列表（附加证据）| molecule={identifier}"
                     )
-                    return acc, True
+                    continue
                 chunk = _extract_named_list(data, "activities")
                 acc.extend(_normalize_dict_list(chunk, "activity"))
-                if len(chunk) < limit:
-                    break
-                off += limit
+
+            # 不再做 per-target 最优截断：所有经过 API 级别筛选的记录都保留，
+            # 每条记录有不同的 document_chembl_id → 不同的论文；
+            # M3A 内部自行选最优做证据判定。
             return acc, True
 
         if target_chembl_ids:
@@ -695,13 +644,21 @@ class ChEMBLClient:
                 base = {
                     "molecule_chembl_id__iexact": chembl_id,
                     "target_chembl_id__iexact": tid,
+                    "standard_relation": "=",  # 只要精确值
+                    "standard_flag": 1,  # 只要标准化数据
+                    "target_organism": "Homo sapiens",  # 只要人体数据
                 }
-                part, _ok = fetch_page(base)
+                part, _ok = fetch_page(base, standard_types=["IC50", "Ki"])
                 merged.extend(part)
             return merged, True
 
-        base = {"molecule_chembl_id__iexact": chembl_id}
-        return fetch_page(base)
+        base = {
+            "molecule_chembl_id__iexact": chembl_id,
+            "standard_relation": "=",  # 只要精确值
+            "standard_flag": 1,  # 只要标准化数据
+            "target_organism": "Homo sapiens",  # 只要人体数据
+        }
+        return fetch_page(base, standard_types=["IC50", "Ki"])
 
     def get_molecule_properties(self, chembl_id: str) -> Optional[Dict[str, Any]]:
         molecule, ok = self.get_molecule_by_chembl_id(chembl_id)

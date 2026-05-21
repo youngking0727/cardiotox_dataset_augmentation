@@ -1,14 +1,12 @@
-"""M3-C: 文献检索器模块"""
+"""M3-C: 文献检索器模块 — 通过本地 /pipeline/chembl 服务获取文献与 QT/hERG 证据段落"""
 
 import logging
-from typing import List, Optional, Dict, Any, Set
+from typing import List, Optional, Dict, Any
 
-from schemas import LiteratureEvidence, PubMedArticle, PatentInfo
+from schemas import LiteratureEvidence, PubMedArticle, PatentInfo, EvidenceContext
 from utils.chembl_client import ChEMBLClient
 from utils.pubmed_client import PubMedClient
-from utils.cache import get_global_cache
 from rules.cardiotox_evidence_rules import (
-    get_evidence_rules,
     classify_literature_text_buckets,
     EVIDENCE_PRIORITY_1,
     EVIDENCE_PRIORITY_2,
@@ -18,39 +16,98 @@ from rules.cardiotox_evidence_rules import (
 
 logger = logging.getLogger(__name__)
 
-
-# 心脏毒性相关关键词（路径 A / 非 path_b 保留）
-CARDIOTOX_KEYWORDS = [
-    "hERG", "HERG", "KCNH2",
-    "QT prolongation", "QT interval",
-    "Torsades de Pointes", "Torsade",
-    "cardiotoxicity", "cardiac toxicity",
-    "arrhythmia", "ventricular arrhythmia",
-    "sudden cardiac death",
-    "Nav1.5", "SCN5A",
-    "Cav1.2", "CACNA1C",
-    "L-type calcium channel"
-]
-
-# 综述Mesh词（用于过滤）
 REVIEW_MESH_TERMS = ["Review", "Meta-Analysis", "Systematic Review"]
 
 
+def _map_evidence_type_to_bucket(evidence_type: str) -> str:
+    """将服务返回的 evidence_type 映射为 priority bucket"""
+    et = (evidence_type or "").strip().lower()
+    if "direct_qt" in et or "clinical_qt" in et:
+        return EVIDENCE_PRIORITY_1
+    if "mechanistic" in et or "herg" in et or "ikr" in et:
+        return EVIDENCE_PRIORITY_2
+    if "secondary" in et or "pharmacology" in et:
+        return EVIDENCE_PRIORITY_3
+    return "irrelevant"
+
+
+def _article_to_pubmed_article(art: Dict[str, Any]) -> PubMedArticle:
+    """将服务返回的 article dict 映射为 PubMedArticle"""
+    contexts_raw = art.get("contexts") or []
+    contexts = [
+        EvidenceContext(
+            source=c.get("source", ""),
+            section=c.get("section", ""),
+            matched_term=c.get("matched_term", ""),
+            evidence_type=c.get("evidence_type", ""),
+            context=c.get("context", ""),
+        )
+        for c in contexts_raw
+    ]
+
+    best_bucket = "irrelevant"
+    best_codes: List[str] = []
+    if contexts:
+        for c in contexts:
+            bucket = _map_evidence_type_to_bucket(c.evidence_type)
+            rk = priority_rank(bucket)
+            if rk > priority_rank(best_bucket):
+                best_bucket = bucket
+                best_codes = [c.evidence_type]
+            elif rk == priority_rank(best_bucket) and c.evidence_type not in best_codes:
+                best_codes.append(c.evidence_type)
+
+    title = art.get("title", "") or ""
+    abstract = art.get("abstract", "") or ""
+    if not contexts:
+        mesh_terms = art.get("mesh_terms") or []
+        best_bucket, best_codes = classify_literature_text_buckets(title, abstract, mesh_terms)
+
+    is_review = False
+    pub_types = art.get("publication_types") or []
+    if any("Review" in pt for pt in pub_types):
+        is_review = True
+    mesh = art.get("mesh_terms") or []
+    if not is_review and any(t in REVIEW_MESH_TERMS for t in mesh):
+        is_review = True
+
+    year = art.get("publication_year")
+    if year is None:
+        ji = art.get("journalInfo") or {}
+        pd = ji.get("publicationDate") or {}
+        y_str = pd.get("year")
+        if y_str:
+            try:
+                year = int(y_str)
+            except (ValueError, TypeError):
+                pass
+
+    kw_hits = [c.matched_term for c in contexts if c.matched_term]
+
+    return PubMedArticle(
+        pmid=str(art.get("pmid") or ""),
+        title=title,
+        abstract=abstract or None,
+        mesh_terms=list(mesh),
+        is_review=is_review,
+        relevance_keywords_hit=kw_hits,
+        molecule_mentioned=art.get("molecule_mentioned", True),
+        publication_year=year,
+        relevance_bucket=best_bucket if best_bucket != "irrelevant" else None,
+        relevance_reason_codes=best_codes,
+        contexts=contexts,
+        source=art.get("source", ""),
+        doi=art.get("doi"),
+    )
+
+
 class LiteratureRetriever:
-    """文献检索器"""
+    """文献检索器 — 通过本地 Pipeline 服务获取文献与 QT/hERG 证据段落"""
 
     def __init__(self, chembl_client: Optional[ChEMBLClient] = None,
                  pubmed_client: Optional[PubMedClient] = None):
-        """
-        初始化文献检索器
-
-        Args:
-            chembl_client: ChEMBL客户端
-            pubmed_client: PubMed客户端
-        """
         self.chembl_client = chembl_client or ChEMBLClient()
         self.pubmed_client = pubmed_client or PubMedClient()
-        self.cache = get_global_cache()
 
     def retrieve(
         self,
@@ -58,111 +115,44 @@ class LiteratureRetriever:
         drug_name: str,
         max_pubmed: int = 30,
         *,
-        pubmed_query_name: Optional[str] = None,
-        path_b: bool = False,
-        child_pref_name: Optional[str] = None,
-        parent_drug_name: Optional[str] = None,
+        molecule: Optional[Dict[str, Any]] = None,
+        activities: Optional[List[Dict[str, Any]]] = None,
     ) -> LiteratureEvidence:
         """
         检索文献证据
 
+        服务拿到 molecule + activities 后自行组织查询：
+        - 有 pref_name/synonyms → 用名字搜 PubMed
+        - 有 activities → 用 document_chembl_id 找已知论文全文
+        - 两者结合 → 提取 QT/hERG 证据段落
+
         Args:
-            chembl_id: 分子的ChEMBL ID
-            drug_name: 默认检索名（未传 pubmed_query_name 时用于 PubMed/专利）
-            max_pubmed: Path A 单查询最大篇数；Path B 下为「每查询约上限」的参考，总篇数由多查询合并控制
-            pubmed_query_name: 若设置（如路径 B 父药名），非 path_b 时 PubMed 用该词
-            path_b: Path B 多查询合并 + 文献分层
-            child_pref_name: 子分子 pref_name
-            parent_drug_name: 父药/ DIQTA drug_name
+            chembl_id: ChEMBL ID
+            drug_name: 药物名称（日志用）
+            max_pubmed: 返回文章数上限
+            molecule: ChEMBL molecule dict（pref_name、molecule_synonyms）
+            activities: ChEMBL 活性数据（含 document_chembl_id → 论文入口）
         """
-        logger.info(f"检索文献证据: {chembl_id} path_b={path_b}")
-        if path_b:
-            return self._retrieve_path_b(
-                chembl_id=chembl_id,
-                drug_name=drug_name,
-                child_pref_name=child_pref_name or "",
-                parent_drug_name=parent_drug_name or "",
-                max_per_query=max(8, max_pubmed // 3),
-            )
+        logger.info("检索文献证据: %s", chembl_id)
 
-        q_pubmed = (pubmed_query_name or "").strip() or drug_name
-        if pubmed_query_name and (pubmed_query_name or "").strip():
-            logger.info(
-                "M3C PubMed：使用 pubmed_query_name=%r（路径 B 父药锚定）",
-                q_pubmed,
-            )
-
-        pubmed_articles = self._search_pubmed(q_pubmed, max_pubmed)
-        patents = self._search_patents(q_pubmed)
-
-        return LiteratureEvidence(
-            pubmed_articles=pubmed_articles,
-            patents=patents,
+        articles, enrichment = self._call_service(
+            molecule_chembl_id=chembl_id,
+            molecule=molecule,
+            activities=activities,
+            top_n=max_pubmed,
         )
 
-    def _retrieve_path_b(
-        self,
-        chembl_id: str,
-        drug_name: str,
-        child_pref_name: str,
-        parent_drug_name: str,
-        max_per_query: int,
-    ) -> LiteratureEvidence:
-        rules = get_evidence_rules()
-        direct_or = self._or_clause(rules.get("direct_qt_terms") or [])
-        mech_or = self._or_clause(rules.get("mechanistic_terms") or [])
-        sec_or = self._or_clause(rules.get("secondary_terms") or [])
-
-        bases = []
-        for b in (child_pref_name, parent_drug_name, drug_name):
-            s = (b or "").strip()
-            if s and s not in bases:
-                bases.append(s)
-
-        queries: List[str] = []
-        for b in bases:
-            if direct_or:
-                queries.append(f'({b}) AND ({direct_or})')
-            if mech_or:
-                queries.append(f'({b}) AND ({mech_or})')
-            if sec_or:
-                queries.append(f'({b}) AND ({sec_or})')
-
-        if not queries:
-            return LiteratureEvidence(pubmed_articles=[], patents=[])
-
-        seen_pmids: Set[str] = set()
-        pmid_order: List[str] = []
-        for q in queries:
-            ids = self.pubmed_client.search_pubmed(q, max_results=max_per_query)
-            for pmid in ids:
-                if pmid not in seen_pmids:
-                    seen_pmids.add(pmid)
-                    pmid_order.append(pmid)
-
-        # 总篇数上限，避免 Path B 查询组合爆炸
-        cap = min(120, max(40, max_per_query * max(4, len(queries))))
-        pmid_order = pmid_order[:cap]
-
-        raw_articles = self.pubmed_client.fetch_articles(pmid_order)
-        name_lower = {x.lower() for x in bases}
-
-        classified: List[PubMedArticle] = []
+        pubmed_articles: List[PubMedArticle] = []
         p1 = p2 = p3 = 0
         top_bucket: Optional[str] = None
         top_codes: List[str] = []
         best_rank = 0
 
-        for art in raw_articles:
-            title = art.get("title", "") or ""
-            abstract = art.get("abstract", "") or ""
-            mesh_terms = art.get("mesh_terms", []) or []
-            text_l = (title + " " + abstract).lower()
-            mol_mention = any(n in text_l for n in name_lower) if name_lower else False
-            if not mol_mention and chembl_id.lower() in text_l:
-                mol_mention = True
+        for art in articles:
+            pa = _article_to_pubmed_article(art)
+            pubmed_articles.append(pa)
 
-            bucket, rcodes = classify_literature_text_buckets(title, abstract, mesh_terms)
+            bucket = pa.relevance_bucket
             if bucket == EVIDENCE_PRIORITY_1:
                 p1 += 1
             elif bucket == EVIDENCE_PRIORITY_2:
@@ -170,53 +160,26 @@ class LiteratureRetriever:
             elif bucket == EVIDENCE_PRIORITY_3:
                 p3 += 1
 
-            rk = priority_rank(bucket if bucket != "irrelevant" else None)
+            rk = priority_rank(bucket)
             if rk > best_rank:
                 best_rank = rk
-                top_bucket = bucket if bucket != "irrelevant" else None
-                top_codes = list(rcodes)
-
-            is_review = art.get("is_review", False)
-            if not is_review:
-                is_review = any(
-                    term in REVIEW_MESH_TERMS for term in mesh_terms
-                )
-
-            kw_hits: List[str] = []
-            for kw in CARDIOTOX_KEYWORDS:
-                if kw.lower() in text_l:
-                    kw_hits.append(kw)
-
-            classified.append(
-                PubMedArticle(
-                    pmid=str(art.get("pmid") or ""),
-                    title=title,
-                    abstract=abstract or None,
-                    mesh_terms=list(mesh_terms),
-                    is_review=is_review,
-                    relevance_keywords_hit=kw_hits,
-                    molecule_mentioned=mol_mention,
-                    publication_year=art.get("publication_year"),
-                    relevance_bucket=bucket,
-                    relevance_reason_codes=rcodes,
-                )
-            )
-
-        patents = self._search_patents(bases[0] if bases else drug_name)
+                top_bucket = bucket
+                top_codes = list(pa.relevance_reason_codes)
 
         le = LiteratureEvidence(
-            pubmed_articles=classified,
-            patents=patents,
+            pubmed_articles=pubmed_articles,
+            patents=self._search_patents(drug_name),
             priority_1_article_count=p1,
             priority_2_article_count=p2,
             priority_3_article_count=p3,
             top_relevance_bucket=top_bucket,
             top_relevance_reason_codes=top_codes,
+            chembl_enrichment=enrichment,
         )
         logger.info(
-            "M3C Path B 文献合并 | chembl_id=%s | n=%s | p1=%s p2=%s p3=%s top=%s",
+            "M3C 文献检索完成 | chembl_id=%s | n=%s | p1=%s p2=%s p3=%s top=%s",
             chembl_id,
-            len(classified),
+            len(pubmed_articles),
             p1,
             p2,
             p3,
@@ -224,72 +187,35 @@ class LiteratureRetriever:
         )
         return le
 
-    @staticmethod
-    def _or_clause(terms: List[str]) -> str:
-        clean = [f'"{t.strip()}"' for t in terms if (t or "").strip()]
-        if not clean:
-            return ""
-        return " OR ".join(clean[:25])
+    def _call_service(
+        self,
+        molecule_chembl_id: str,
+        molecule: Optional[Dict[str, Any]] = None,
+        activities: Optional[List[Dict[str, Any]]] = None,
+        top_n: int = 30,
+    ) -> tuple:
+        """调用本地 Pipeline 服务，返回 (articles, enrichment)"""
+        kwargs: Dict[str, Any] = {}
+        if molecule and isinstance(molecule, dict):
+            kwargs["pref_name"] = (molecule.get("pref_name") or "").strip() or None
+            synonyms = molecule.get("molecule_synonyms") or []
+            if synonyms:
+                kwargs["molecule_synonyms"] = [
+                    {"syn_type": s.get("syn_type", ""),
+                     "syn_name": s.get("synonyms") or s.get("molecule_synonym") or ""}
+                    for s in synonyms
+                ]
+        if activities:
+            kwargs["activities"] = activities
 
-    def _search_pubmed(self, drug_name: str, max_results: int) -> List[PubMedArticle]:
-        """
-        从PubMed搜索心脏毒性相关文献
-
-        Args:
-            drug_name: 药物名称
-            max_results: 最大结果数
-
-        Returns:
-            PubMed文章列表
-        """
-        try:
-            articles = self.pubmed_client.search_cardiotox_articles(
-                drug_name=drug_name,
-                keywords=CARDIOTOX_KEYWORDS,
-                max_results=max_results
-            )
-
-            result = []
-            for article in articles:
-                is_review = article.get("is_review", False)
-                if not is_review:
-                    mesh_terms = article.get("mesh_terms", [])
-                    is_review = any(term in REVIEW_MESH_TERMS for term in mesh_terms)
-
-                b, rc = classify_literature_text_buckets(
-                    article.get("title", "") or "",
-                    article.get("abstract") or "",
-                    article.get("mesh_terms", []),
-                )
-                result.append(PubMedArticle(
-                    pmid=article.get("pmid", ""),
-                    title=article.get("title", ""),
-                    abstract=article.get("abstract"),
-                    mesh_terms=article.get("mesh_terms", []),
-                    is_review=is_review,
-                    relevance_keywords_hit=article.get("relevance_keywords_hit", []),
-                    molecule_mentioned=article.get("molecule_mentioned", True),
-                    publication_year=article.get("publication_year"),
-                    relevance_bucket=b,
-                    relevance_reason_codes=rc,
-                ))
-
-            return result
-
-        except Exception as e:
-            logger.warning(f"PubMed搜索失败: {drug_name}, 错误: {e}")
-            return []
+        data = self.pubmed_client.fetch_pipeline_articles(
+            molecule_chembl_id=molecule_chembl_id, top_n=top_n, **kwargs,
+        )
+        if not data:
+            return [], None
+        return data.get("articles") or [], data.get("chembl_enrichment")
 
     def _search_patents(self, drug_name: str) -> List[PatentInfo]:
-        """
-        搜索专利数据库
-
-        Args:
-            drug_name: 药物名称
-
-        Returns:
-            专利列表
-        """
         return []
 
     @staticmethod

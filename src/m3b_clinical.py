@@ -70,127 +70,60 @@ class ClinicalStatusRetriever:
         self,
         chembl_id: str,
         drug_name: Optional[str] = None,
+        molecule: Optional[Dict[str, Any]] = None,
         *,
         refresh_chembl_clinical: bool = False,
-        clinicaltrials_query_name: Optional[str] = None,
-        path_b_clinicaltrials_names: Optional[List[str]] = None,
     ) -> ClinicalEvidence:
         """
-        检索临床状态证据。
+        检索临床状态证据。每个分子独立检索，不融合其他分子信息。
 
-        :param drug_name: 若未传 ``clinicaltrials_query_name``：与 ChEMBL ``pref_name`` 规范化一致才检索
-            ClinicalTrials；未传入则用 ``pref_name`` 检索（若有）。
-        :param clinicaltrials_query_name: 若设置（如路径 B 父药名），**直接**作为 ClinicalTrials 检索词，
-            不与子分子 ``pref_name`` 做一致性校验（相似扩展化合物通常不是同一药品名）。
-        :param path_b_clinicaltrials_names: Path B 时对子/父多个名称分别检索试验并融合（去重 nct_id）。
-        :param refresh_chembl_clinical: 为 True 时删除 ``chembl_clinical_{id}`` 缓存后再拉 ChEMBL drug。
+        :param chembl_id: 分子 ChEMBL ID
+        :param drug_name: 药品名称（用于 ClinicalTrials 检索）
+        :param molecule: 若已获取分子信息（包含 pref_name），传入可避免重复查询
+        :param refresh_chembl_clinical: 为 True 时删除缓存后再拉 ChEMBL drug
         """
         logger.info("检索临床状态数据: %s", chembl_id)
 
-        raw_mol = self.chembl_client.get_molecule_by_chembl_id(chembl_id)
-        molecule = raw_mol[0] if isinstance(raw_mol, tuple) else raw_mol
+        # 优先使用传入的 molecule，若无则查询
+        if molecule is None:
+            raw_mol = self.chembl_client.get_molecule_by_chembl_id(chembl_id)
+            molecule = raw_mol[0] if isinstance(raw_mol, tuple) else raw_mol
         if not isinstance(molecule, dict):
             molecule = {}
 
         pref_name, inchi_key = _molecule_pref_and_inchi(molecule)
-        _line = (
-            f"M3B ChEMBL molecule | chembl_id={chembl_id} | "
-            f"pref_name={pref_name!r} | inchi_key={inchi_key!r}"
-        )
-        logger.info(_line)
-        print(_line, file=sys.stderr, flush=True)
+        logger.info(f"M3B ChEMBL molecule | chembl_id={chembl_id} | pref_name={pref_name!r}")
 
-        clinical_trials: List[ClinicalTrialInfo] = []
+        # ClinicalTrials 查询名：优先 molecule pref_name，其次 drug_name
         ct_query_name: Optional[str] = None
-        ct_names_used: List[str] = []
         user_dn = (drug_name or "").strip() or None
         pref_empty = not (pref_name or "").strip()
 
-        uniq_pb: List[str] = []
-        if path_b_clinicaltrials_names is not None:
-            seen_pb: set[str] = set()
-            for raw in path_b_clinicaltrials_names:
-                s = (raw or "").strip()
-                if not s:
-                    continue
-                key = _normalize_label(s)
-                if key in seen_pb:
-                    continue
-                seen_pb.add(key)
-                uniq_pb.append(s)
-            if uniq_pb:
-                for nm in uniq_pb:
-                    batch = self._retrieve_from_clinicaltrials(nm)
-                    clinical_trials.extend(batch)
-                clinical_trials = self._dedupe_trials(clinical_trials)
-                ct_names_used = list(uniq_pb)
-                _ov = (
-                    f"M3B Path B ClinicalTrials：融合检索 names={ct_names_used!r}，"
-                    f"去重后 trials={len(clinical_trials)}"
-                )
-                logger.info(_ov)
-                print(_ov, file=sys.stderr, flush=True)
-
-        if not uniq_pb:
-            ct_override = (clinicaltrials_query_name or "").strip()
-            if ct_override:
-                ct_query_name = ct_override
-                _ov = (
-                    f"M3B ClinicalTrials：使用 clinicaltrials_query_name={ct_query_name!r} "
-                    f"（路径 B 以父药锚定，与子分子 pref_name 无关）"
-                )
-                logger.info(_ov)
-                print(_ov, file=sys.stderr, flush=True)
-            elif user_dn is not None:
-                if pref_empty:
-                    ct_query_name = user_dn
-                    _fb = (
-                        f"M3B ClinicalTrials：子分子无 pref_name，使用传入 drug_name={user_dn!r}"
-                    )
-                    logger.info(_fb)
-                    print(_fb, file=sys.stderr, flush=True)
-                elif _normalize_label(user_dn) != _normalize_label(pref_name):
-                    _skip = (
-                        f"M3B 跳过 ClinicalTrials：传入 drug_name 与 ChEMBL pref_name 不一致 | "
-                        f"drug_name={user_dn!r} pref_name={pref_name!r}"
-                    )
-                    logger.warning(_skip)
-                    print(_skip, file=sys.stderr, flush=True)
-                else:
-                    ct_query_name = user_dn
-            elif pref_name:
-                ct_query_name = pref_name
-            else:
-                _skip = "M3B 跳过 ClinicalTrials：无 pref_name 且未传入 drug_name"
-                logger.info(_skip)
-                print(_skip, file=sys.stderr, flush=True)
+        if pref_name:
+            ct_query_name = pref_name
+        elif user_dn:
+            ct_query_name = user_dn
+        else:
+            logger.info("M3B 跳过 ClinicalTrials：无 pref_name 且未传入 drug_name")
 
         if refresh_chembl_clinical:
             ck = f"chembl_clinical_{chembl_id}"
             self.cache.delete(ck)
-            _msg = f"M3B 已清除缓存键 {ck!r}"
-            logger.info(_msg)
-            print(_msg, file=sys.stderr, flush=True)
 
-        chembl_clinical = self._retrieve_from_chembl(chembl_id)
+        chembl_clinical = self._retrieve_from_chembl(chembl_id, molecule=molecule)
 
-        if ct_query_name and not uniq_pb:
+        clinical_trials: List[ClinicalTrialInfo] = []
+        if ct_query_name:
             trials = self._retrieve_from_clinicaltrials(ct_query_name)
             clinical_trials.extend(trials)
-            if not ct_names_used:
-                ct_names_used = [ct_query_name]
 
         external_db_flags = self._get_external_db_flags(chembl_id)
         fda_warnings = self._get_fda_warnings(chembl_id)
 
-        # 以规范化后的 max_phase 为准推导 approved，避免 ChEMBL 字符串 phase、旧缓存中 approved 与 phase 不一致
         max_phase_i = _coerce_max_phase(chembl_clinical.get("max_phase"))
         approved = _approved_from_max_phase(max_phase_i)
         if max_phase_i == 4 and chembl_clinical.get("approved") is False:
-            logger.info(
-                "M3B: 已按 max_phase==4 纠正 approved（原缓存或 drug 记录中 approved 与 phase 不一致，"
-                "多因 max_phase 曾为字符串或未统一推导）"
-            )
+            logger.info("M3B: 已按 max_phase==4 纠正 approved")
 
         withdrawn_info = chembl_clinical.get("withdrawn", WithdrawalInfo(flag=False))
         direct_qt_hit = self._compute_direct_qt_clinical_hit(
@@ -209,45 +142,65 @@ class ClinicalStatusRetriever:
             fda_label_warnings=fda_warnings,
             drug_info_status=chembl_clinical.get("drug_info_status"),
             direct_qt_clinical_hit=direct_qt_hit,
-            clinicaltrials_query_names_used=ct_names_used,
         )
 
-    def _retrieve_from_chembl(self, chembl_id: str) -> Dict[str, Any]:
+    def _retrieve_from_chembl(
+        self, chembl_id: str, molecule: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        从 ChEMBL 获取临床状态信息。
+
+        :param chembl_id: 分子 ChEMBL ID
+        :param molecule: 已获取的 molecule 数据（包含 max_phase, withdrawn_flag, black_box_warning 等）
+        """
         cache_key = f"chembl_clinical_{chembl_id}"
         cached = self.cache.get(cache_key)
         if cached:
             return cached
 
-        try:
-            raw = self.chembl_client.get_drug_info(chembl_id)
-            drug_info = raw[0] if isinstance(raw, tuple) else raw
-            if not isinstance(drug_info, dict):
-                drug_info = None
+        # 优先使用传入的 molecule
+        drug_info = None
+        if molecule is not None and isinstance(molecule, dict):
+            drug_info = molecule
+        else:
+            # 兜底：若未传入则查询（保留向后兼容）
+            try:
+                raw = self.chembl_client.get_drug_info(chembl_id)
+                drug_info = raw[0] if isinstance(raw, tuple) else raw
+            except Exception as e:
+                logger.warning("从ChEMBL获取drug信息失败: %s, 错误: %s", chembl_id, e)
 
-            if not drug_info:
-                # 不写入缓存，避免「无 drug」被永久短路；状态由 drug_info_status 表达
-                return {"drug_info_status": "not_found"}
+        if not drug_info or not isinstance(drug_info, dict):
+            return {"drug_info_status": "not_found"}
 
-            mp = _coerce_max_phase(drug_info.get("max_phase"))
-            result = {
-                "max_phase": mp,
-                "approved": _approved_from_max_phase(mp),
-                "withdrawn": WithdrawalInfo(
-                    flag=drug_info.get("withdrawn_flag", False),
-                    year=drug_info.get("withdrawn_year"),
-                    country=drug_info.get("withdrawn_country"),
-                    reason=drug_info.get("withdrawn_reason"),
-                ),
-                "black_box_warning": drug_info.get("black_box_warning", False),
-                "drug_info_status": "ok",
-            }
+        # 从 molecule/drug 中提取临床相关字段
+        mp = _coerce_max_phase(drug_info.get("max_phase"))
+        withdrawn_flag = drug_info.get("withdrawn_flag", False)
+        # drug 端点有 withdrawn_year/country/reason，molecule 端点只有 withdrawn_flag
+        if "withdrawn_year" in drug_info:
+            withdrawn_year = drug_info.get("withdrawn_year")
+            withdrawn_country = drug_info.get("withdrawn_country")
+            withdrawn_reason = drug_info.get("withdrawn_reason")
+        else:
+            withdrawn_year = None
+            withdrawn_country = None
+            withdrawn_reason = None
 
-            self.cache.set(cache_key, result)
-            return result
+        result = {
+            "max_phase": mp,
+            "approved": _approved_from_max_phase(mp),
+            "withdrawn": WithdrawalInfo(
+                flag=withdrawn_flag,
+                year=withdrawn_year,
+                country=withdrawn_country,
+                reason=withdrawn_reason,
+            ),
+            "black_box_warning": drug_info.get("black_box_warning", False),
+            "drug_info_status": "ok",
+        }
 
-        except Exception as e:
-            logger.warning("从ChEMBL获取临床状态失败: %s, 错误: %s", chembl_id, e)
-            return {"drug_info_status": "request_failed"}
+        self.cache.set(cache_key, result)
+        return result
 
     @staticmethod
     def _dedupe_trials(trials: List[ClinicalTrialInfo]) -> List[ClinicalTrialInfo]:
@@ -285,6 +238,9 @@ class ClinicalStatusRetriever:
                     title=trial["title"],
                     status=trial["status"],
                     qt_related=trial["qt_related"],
+                    qt_related_title=trial.get("qt_related_title"),
+                    qt_related_outcome=trial.get("qt_related_outcome"),
+                    qt_outcome_measure=trial.get("qt_outcome_measure"),
                     summary=trial.get("summary"),
                 )
                 for trial in qt_trials

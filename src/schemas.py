@@ -105,6 +105,9 @@ class ClinicalTrialInfo(BaseModel):
     title: str
     status: str
     qt_related: bool
+    qt_related_title: Optional[bool] = None  # 标题/摘要是否 QT 相关
+    qt_related_outcome: Optional[bool] = None  # 主要终点是否 QT 相关
+    qt_outcome_measure: Optional[str] = None   # QT 相关的主要终点描述
     summary: Optional[str] = None
 
 
@@ -152,28 +155,45 @@ class ClinicalEvidence(BaseModel):
         False,
         description="撤市理由/试验标题摘要/FDA 警告等是否含直接 QT/心律失常语义（Path B 保留与 M5 共用）",
     )
-    clinicaltrials_query_names_used: List[str] = Field(
-        default_factory=list,
-        description="Path B 双路 ClinicalTrials 检索使用的名称（去重后）",
-    )
 
 
 # M3-C: 文献证据
+class EvidenceContext(BaseModel):
+    """服务返回的 QT/hERG 证据段落"""
+    source: str = Field("", description="fulltext / abstract")
+    section: str = Field("", description="Introduction / Results / Discussion 等")
+    matched_term: str = Field("", description="匹配到的心脏毒性关键词")
+    evidence_type: str = Field(
+        "",
+        description="clinical_or_direct_qt_evidence / mechanistic_herg_ikr_evidence / secondary_pharmacology_evidence",
+    )
+    context: str = Field("", description="原文片段")
+
+
 class PubMedArticle(BaseModel):
     """PubMed文章"""
     pmid: str
     title: str
     abstract: Optional[str] = None
-    mesh_terms: List[str]
-    is_review: bool
-    relevance_keywords_hit: List[str]
-    molecule_mentioned: bool
+    mesh_terms: List[str] = Field(default_factory=list)
+    is_review: bool = False
+    relevance_keywords_hit: List[str] = Field(default_factory=list)
+    molecule_mentioned: bool = True
     publication_year: Optional[int] = None
     relevance_bucket: Optional[str] = Field(
         None,
         description="priority_1_direct_qt | priority_2_mechanistic_herg_ikr | priority_3_secondary_pharmacology | irrelevant",
     )
     relevance_reason_codes: List[str] = Field(default_factory=list)
+    contexts: List[EvidenceContext] = Field(
+        default_factory=list,
+        description="服务返回的 QT/hERG 证据段落",
+    )
+    source: str = Field(
+        "",
+        description="chembl_known / pubmed_search 等",
+    )
+    doi: Optional[str] = None
 
 
 class PatentInfo(BaseModel):
@@ -193,6 +213,10 @@ class LiteratureEvidence(BaseModel):
     priority_3_article_count: int = 0
     top_relevance_bucket: Optional[str] = None
     top_relevance_reason_codes: List[str] = Field(default_factory=list)
+    chembl_enrichment: Optional[Dict[str, Any]] = Field(
+        None,
+        description="服务返回的 ChEMBL enrichment（name_variants、known_pubmed_ids、herg_activities），追溯证据怎么查出来的",
+    )
 
 
 # M4: 证据包
