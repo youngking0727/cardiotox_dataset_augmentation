@@ -20,11 +20,11 @@ logger = logging.getLogger(__name__)
 
 CHEMBL_API_BASE = "https://www.ebi.ac.uk/chembl/api/data/"
 
-# 统一：首次失败后最多重试 4 次，间隔 2s / 4s / 8s / 16s（共 5 次尝试）
-_CHEMBL_MAX_RETRIES = 4
-_CHEMBL_RETRY_DELAYS_SEC = (2.0, 4.0, 8.0, 16.0)
+# 统一：首次失败后最多重试 1 次，间隔 2s（共 2 次尝试）
+_CHEMBL_MAX_RETRIES = 1
+_CHEMBL_RETRY_DELAYS_SEC = (2.0,)
 _CHEMBL_TOTAL_ATTEMPTS = 1 + _CHEMBL_MAX_RETRIES
-_REQUEST_TIMEOUT_SEC = 60.0
+_REQUEST_TIMEOUT_SEC = 30.0
 
 
 def standard_inchi_key_from_molecule(
