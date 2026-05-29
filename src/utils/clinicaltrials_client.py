@@ -20,8 +20,10 @@ from utils.clinicaltrials_result_evidence import (
     classify_outcome_text,
     classify_protocol_outcomes_module,
     classify_results_outcome_measures,
+    is_qt_specific_outcome_text,
     is_recall_branch_results_signal,
     is_strict_branch_protocol_signal,
+    pick_protocol_qt_outcome_measure,
 )
 
 logger = logging.getLogger(__name__)
@@ -564,6 +566,10 @@ class ClinicalTrialsClient:
             results_section.get("qt_result_measures") or [],
             raw_study,
         )
+        qt_outcome_measure = trial.get("qt_outcome_measure") or pick_protocol_qt_outcome_measure(
+            protocol_outcomes
+        )
+        tier_meta: Dict[str, str] = {}
         evidence_tier = classify_evidence_tier(
             alignment,
             qt_result_attribution=qt_attr,
@@ -573,6 +579,8 @@ class ClinicalTrialsClient:
             protocol_outcomes=protocol_outcomes,
             title_classification=title_cls,
             results_section=results_section,
+            qt_outcome_measure=qt_outcome_measure,
+            tier_reason=tier_meta,
         )
 
         enriched["drug_name_set"] = {
@@ -596,7 +604,9 @@ class ClinicalTrialsClient:
         enriched["results_qt_hit"] = results_qt_hit
         enriched["qt_related_title"] = title_cls.get("evidence_type") == "qt_specific"
         enriched["qt_related_outcome"] = protocol_outcomes.get("has_qt_specific", False)
+        enriched["qt_outcome_measure"] = qt_outcome_measure
         enriched["evidence_tier"] = evidence_tier
+        enriched["evidence_tier_reason"] = tier_meta.get("reason", "")
         enriched.pop("_prefetched_raw", None)
         enriched.pop("_clinical_results_section", None)
         return enriched

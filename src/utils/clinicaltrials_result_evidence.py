@@ -642,6 +642,64 @@ def classify_results_outcome_measures(
     return stats
 
 
+def is_qt_specific_outcome_text(raw_text: str) -> bool:
+    """Return True only for explicit QT/QTc endpoint wording, not broad ECG-only labels.
+
+    Examples:
+        "ECG" -> False
+        "12-lead ECG" -> False
+        "Corrected QT interval (QTc)" -> True
+        "Change from baseline in QTcF" -> True
+    """
+    if not (raw_text or "").strip():
+        return False
+
+    _, normalized, compact = normalize_outcome_text(raw_text)
+
+    broad_only_patterns = (
+        r"^ecg$",
+        r"^ekg$",
+        r"^electrocardiogram$",
+        r"^12-?lead ecg$",
+        r"^12-?lead ekg$",
+        r"^12-?lead electrocardiogram$",
+        r"^ecg abnormalities$",
+        r"^ecg abnormality$",
+        r"^ecg findings$",
+        r"^clinically significant ecg(?: abnormalities)?$",
+        r"^vital signs and ecg$",
+        r"^safety and tolerability: ecg$",
+    )
+    if any(re.search(p, normalized) for p in broad_only_patterns):
+        return False
+
+    return bool(_match_table(normalized, compact, _QT_SPECIFIC_PHRASES))
+
+
+def pick_protocol_qt_outcome_measure(protocol_outcomes: Dict[str, Any]) -> str:
+    """Pick the best display label for protocol QT/ECG outcome measures."""
+    for om in protocol_outcomes.get("qt_specific_outcomes") or []:
+        measure = (om.get("measure") or om.get("title") or "").strip()
+        if is_qt_specific_outcome_text(measure):
+            return measure
+        label = " ".join(
+            part for part in (om.get("title") or "", om.get("measure") or "") if part
+        ).strip()
+        if is_qt_specific_outcome_text(label):
+            return label
+
+    for bucket in (
+        "qt_specific_outcomes",
+        "ecg_conduction_outcomes",
+        "ecg_broad_outcomes",
+        "cardiac_ae_outcomes",
+    ):
+        items = protocol_outcomes.get(bucket) or []
+        if items:
+            return items[0].get("measure") or items[0].get("title") or ""
+    return ""
+
+
 def is_strict_branch_protocol_signal(protocol_stats: Dict[str, Any]) -> bool:
     """Strict search branch.
 
