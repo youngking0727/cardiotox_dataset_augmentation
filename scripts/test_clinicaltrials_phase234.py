@@ -73,6 +73,18 @@ _PHASE_NAME_TO_OUTPUT_DIR = {
 
 _BRANCH_INTERVENTION = "intervention"
 _BRANCH_FULL_TEXT = "full_text"
+_BRANCH_BROAD_DRUG_QT_RECALL = "broad_drug_qt_recall"
+
+_CONTROLLED_QT_RECALL_TERMS = (
+    "QTc",
+    "QTcB",
+    "QTcF",
+    "corrected QT",
+    "QT interval",
+    "Bazett",
+    "Fridericia",
+    "Fredericia",
+)
 
 _QUERY_STOPLIST = frozenset({
     "water", "sodium", "potassium", "chloride", "hydrochloride", "sulfate",
@@ -360,6 +372,8 @@ def _build_ctgov_branch_query_url(
         query_field, query_value = "query.intr", term
     elif branch_name == _BRANCH_FULL_TEXT:
         query_field, query_value = "query.term", _full_text_query_term(term)
+    elif branch_name == _BRANCH_BROAD_DRUG_QT_RECALL:
+        query_field, query_value = "query.term", term
     else:
         raise ValueError(f"未知 CT.gov 查询分支: {branch_name}")
 
@@ -401,6 +415,12 @@ def _search_ctgov_branch(
     if branch_name == _BRANCH_FULL_TEXT:
         return client.search_studies(
             _full_text_query_term(term),
+            max_results=max_results,
+            query_field="query.term",
+        )
+    if branch_name == _BRANCH_BROAD_DRUG_QT_RECALL:
+        return client.search_studies(
+            term,
             max_results=max_results,
             query_field="query.term",
         )
@@ -644,6 +664,88 @@ def _make_term_query_debug_row(
     }
 
 
+
+def _controlled_broad_query_terms(query_terms: List[str]) -> List[str]:
+    """Build conservative drug+QT full-text queries."""
+    out: List[str] = []
+    seen: set[str] = set()
+    drug_terms: List[str] = []
+    for term in query_terms:
+        t = str(term or "").strip()
+        if len(t) < 3:
+            continue
+        key = t.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        drug_terms.append(t)
+        if len(drug_terms) >= 8:
+            break
+    for drug_term in drug_terms:
+        escaped = drug_term.replace('"', '\\"')
+        for qt_term in _CONTROLLED_QT_RECALL_TERMS:
+            out.append(f'"{escaped}" "{qt_term}"')
+    return out
+
+
+def _add_broad_drug_qt_candidates(
+    client: ClinicalTrialsClient,
+    *,
+    query_terms: List[str],
+    max_results: int,
+    nct_to_title: Dict[str, str],
+    nct_to_protocol: Dict[str, Dict[str, Any]],
+    nct_to_meta: Dict[str, Dict[str, Any]],
+    nct_order: List[str],
+    urls: List[str],
+) -> Dict[str, Any]:
+    """
+    Add controlled broad drug+QT candidates.
+
+    Candidate is retained only when full-study parsing finds QT-specific
+    protocol/results evidence. This branch is recall-only and does not imply Primary.
+    """
+    added = 0
+    raw_hit_count = 0
+    first_added: List[str] = []
+    for broad_query in _controlled_broad_query_terms(query_terms):
+        url = _build_ctgov_branch_query_url(broad_query, max_results, _BRANCH_BROAD_DRUG_QT_RECALL)
+        urls.append(url)
+        studies = _search_ctgov_branch(client, broad_query, max_results, _BRANCH_BROAD_DRUG_QT_RECALL)
+        raw_hit_count += len(studies)
+        ncts, titles, protocols = _summarize_branch_studies(client, studies)
+        for nct_id in ncts:
+            if nct_id in nct_to_title:
+                continue
+            protocol = protocols[nct_id]
+            raw = client.get_study_by_nct_id(nct_id) or {"protocolSection": protocol}
+            results_section = client.parse_results_section(raw)
+            protocol_stats = classify_protocol_outcomes_module(protocol.get("outcomesModule") or {})
+            title_summary = " ".join([
+                str((protocol.get("identificationModule") or {}).get("briefTitle") or ""),
+                str((protocol.get("descriptionModule") or {}).get("briefSummary") or ""),
+            ])
+            title_cls = classify_outcome_text(title_summary)
+            has_qt_specific = bool(
+                results_section.get("has_qt_results")
+                or protocol_stats.get("has_qt_specific")
+                or title_cls.get("evidence_type") == "qt_specific"
+            )
+            if not has_qt_specific:
+                continue
+            nct_to_title[nct_id] = titles[nct_id]
+            nct_to_protocol[nct_id] = protocol
+            nct_to_meta[nct_id] = {
+                "selected_branch": _BRANCH_BROAD_DRUG_QT_RECALL,
+                "query_term": broad_query,
+                "alignment_fields_matched": ["query.term:drug+qt"],
+                "_prefetched_raw": raw,
+            }
+            nct_order.append(nct_id)
+            first_added.append(nct_id)
+            added += 1
+    return {"broad_raw_hit_count": raw_hit_count, "broad_added_count": added, "broad_first_5_nct_ids": _pipe_join(first_added[:5])}
+
 def _probe_ctgov_raw_hits(
     client: ClinicalTrialsClient,
     query_terms: List[str],
@@ -750,6 +852,20 @@ def _probe_ctgov_raw_hits(
             )
         )
 
+    # Controlled broad drug+QT recall: strict enough for candidate generation,
+    # not sufficient for Primary evidence. This is enabled for all phases but
+    # requires QT-specific protocol/results evidence after full-study fetch.
+    broad_stats = _add_broad_drug_qt_candidates(
+        client,
+        query_terms=query_terms,
+        max_results=max_results,
+        nct_to_title=nct_to_title,
+        nct_to_protocol=nct_to_protocol,
+        nct_to_meta=nct_to_meta,
+        nct_order=nct_order,
+        urls=urls,
+    )
+
     first5 = nct_order[:5]
     count = len(nct_order)
     first5_titles = _pipe_join([nct_to_title[n] for n in first5])
@@ -761,6 +877,9 @@ def _probe_ctgov_raw_hits(
         "drug_only_raw_hit_count": count,
         "drug_only_first_5_nct_ids": _pipe_join(first5),
         "drug_only_first_5_titles": first5_titles,
+        "broad_raw_hit_count": broad_stats.get("broad_raw_hit_count", 0),
+        "broad_added_count": broad_stats.get("broad_added_count", 0),
+        "broad_first_5_nct_ids": broad_stats.get("broad_first_5_nct_ids", ""),
         "_drug_only_candidates": {
             nct: {
                 "protocol": nct_to_protocol[nct],
@@ -901,12 +1020,15 @@ def _drug_only_then_local_qt_trials(
 
     for nct_id, cand in drug_only_candidates.items():
         protocol_study = cand["protocol"]
-        raw_study = client.get_study_by_nct_id(nct_id) or {}
+        raw_study = cand.get("_prefetched_raw") or client.get_study_by_nct_id(nct_id) or {}
         if not _local_qt_signal(client, protocol_study, raw_study):
             continue
 
         trial = _build_trial_from_local_qt_candidate(client, protocol_study, raw_study)
         if trial:
+            if cand.get("selected_branch") == _BRANCH_BROAD_DRUG_QT_RECALL:
+                trial["search_branch"] = _BRANCH_BROAD_DRUG_QT_RECALL
+                trial["_broad_recall_query"] = cand.get("query_term", "")
             qt_trials.append(trial)
 
     return qt_trials
@@ -945,6 +1067,9 @@ def _make_query_debug_row(
         "drug_only_first_5_titles": "",
         "qt_after_local_filter_count": 0,
         "final_qt_hits": 0,
+        "broad_raw_hit_count": 0,
+        "broad_added_count": 0,
+        "broad_first_5_nct_ids": "",
     }
 
 

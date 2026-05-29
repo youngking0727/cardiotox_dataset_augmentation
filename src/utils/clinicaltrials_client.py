@@ -274,6 +274,21 @@ class ClinicalTrialsClient:
         "protocolSection.armsInterventionsModule",
     ]
 
+    # Controlled broad recall terms. These are used only after drug-only
+    # intervention recall and are never sufficient by themselves for Primary.
+    # A broad candidate must still contain qt_specific results/protocol evidence
+    # and pass downstream drug/result attribution.
+    _CONTROLLED_QT_RECALL_TERMS = (
+        "QTc",
+        "QTcB",
+        "QTcF",
+        "corrected QT",
+        "QT interval",
+        "Bazett",
+        "Fridericia",
+        "Fredericia",
+    )
+
     def search_studies(
         self,
         query: str,
@@ -419,6 +434,155 @@ class ClinicalTrialsClient:
             texts.append(" ".join([ag.get("label", ""), ag.get("description", "")]))
         return any(match_terms_in_text(strong_terms, t) for t in texts if t.strip())
 
+
+    @classmethod
+    def _event_group_lookup(cls, adverse_events_module: Dict[str, Any]) -> Dict[str, Dict[str, str]]:
+        """Build adverse-event groupId -> title/description map."""
+        lookup: Dict[str, Dict[str, str]] = {}
+        for grp in (adverse_events_module or {}).get("eventGroups") or []:
+            if not isinstance(grp, dict):
+                continue
+            gid = str(grp.get("id") or "").strip()
+            if not gid:
+                continue
+            lookup[gid] = {
+                "id": gid,
+                "title": str(grp.get("title") or grp.get("label") or "").strip(),
+                "description": str(grp.get("description") or "").strip(),
+            }
+        return lookup
+
+    @classmethod
+    def _collect_group_ids_recursive(cls, obj: Any, out: Set[str]) -> None:
+        """Collect groupId/group_id/id fields from nested AE event stats/categories."""
+        if isinstance(obj, dict):
+            for key in ("groupId", "group_id", "groupID"):
+                val = obj.get(key)
+                if val:
+                    out.add(str(val).strip())
+            for value in obj.values():
+                cls._collect_group_ids_recursive(value, out)
+        elif isinstance(obj, list):
+            for item in obj:
+                cls._collect_group_ids_recursive(item, out)
+
+    @classmethod
+    def _event_text(cls, event: Dict[str, Any]) -> str:
+        """Flatten clinically relevant AE event fields for QT-specific classification."""
+        parts: List[str] = []
+        for key in (
+            "term", "title", "name", "organSystem", "sourceVocabulary",
+            "assessmentType", "notes", "description",
+        ):
+            val = event.get(key)
+            if val:
+                parts.append(str(val))
+        for key in ("categories", "measurements", "stats"):
+            val = event.get(key)
+            if val:
+                parts.append(str(val))
+        return " ".join(parts)
+
+    @classmethod
+    def _iter_adverse_event_records(
+        cls,
+        adverse_events_module: Dict[str, Any],
+    ) -> List[tuple[str, Dict[str, Any]]]:
+        """
+        Yield adverse-event records from both common ClinicalTrials.gov shapes:
+        1) seriousEvents/otherEvents as a flat list of event dicts;
+        2) seriousEvents/otherEvents as group/system dicts containing events[].
+        """
+        records: List[tuple[str, Dict[str, Any]]] = []
+        for source_key in ("seriousEvents", "otherEvents", "events"):
+            items = adverse_events_module.get(source_key) or []
+            if not isinstance(items, list):
+                continue
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+
+                nested_events = item.get("events")
+                if isinstance(nested_events, list):
+                    parent_context = {
+                        "parent_term": item.get("term") or item.get("title") or item.get("name") or "",
+                        "parent_organ_system": item.get("organSystem") or "",
+                        "parent_source_vocabulary": item.get("sourceVocabulary") or "",
+                    }
+                    for ev in nested_events:
+                        if isinstance(ev, dict):
+                            merged = dict(ev)
+                            merged.update({k: v for k, v in parent_context.items() if v})
+                            records.append((source_key, merged))
+                    continue
+
+                records.append((source_key, item))
+        return records
+
+    @classmethod
+    def _classify_adverse_event_results(cls, adverse_events_module: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Parse QT/ECG evidence from resultsSection.adverseEventsModule.
+
+        ClinicalTrials.gov sometimes reports QTcB/QTcF thresholds as AE/event-table
+        results instead of outcomeMeasuresModule. This parser is generic and applies
+        to all drugs. It supports both flat and nested adverse-event structures.
+        """
+        out: Dict[str, Any] = {
+            "qt_result_measures": [],
+            "ecg_conduction_result_measures": [],
+            "ecg_broad_result_measures": [],
+            "cardiac_ae_result_measures": [],
+            "classified_outcomes": [],
+        }
+        if not adverse_events_module or not isinstance(adverse_events_module, dict):
+            return out
+
+        group_lookup = cls._event_group_lookup(adverse_events_module)
+
+        for source_key, event in cls._iter_adverse_event_records(adverse_events_module):
+            text = cls._event_text(event)
+            if not text.strip():
+                continue
+            classification = classify_outcome_text(text)
+            evidence_type = classification.get("evidence_type")
+            if evidence_type not in {"qt_specific", "ecg_conduction", "ecg_broad", "cardiac_ae"}:
+                continue
+
+            group_ids: Set[str] = set()
+            cls._collect_group_ids_recursive(event, group_ids)
+            groups: List[Dict[str, str]] = []
+            for gid in sorted(g for g in group_ids if g):
+                g = group_lookup.get(gid, {"id": gid, "title": "", "description": ""})
+                groups.append({"id": gid, "title": g.get("title", ""), "description": g.get("description", "")})
+
+            title = str(
+                event.get("term")
+                or event.get("title")
+                or event.get("name")
+                or event.get("parent_term")
+                or text[:120]
+            ).strip()
+            item = {
+                "measure": title,
+                "title": title,
+                "description": str(event.get("description") or event.get("notes") or "").strip(),
+                "source": f"adverseEventsModule.{source_key}",
+                "groups": groups,
+                "classification": classification,
+                "raw_event": event,
+            }
+            out["classified_outcomes"].append(item)
+            if evidence_type == "qt_specific":
+                out["qt_result_measures"].append(item)
+            elif evidence_type == "ecg_conduction":
+                out["ecg_conduction_result_measures"].append(item)
+            elif evidence_type == "ecg_broad":
+                out["ecg_broad_result_measures"].append(item)
+            elif evidence_type == "cardiac_ae":
+                out["cardiac_ae_result_measures"].append(item)
+        return out
+
     def _build_results_recall_trial(
         self,
         basics: Dict[str, Any],
@@ -443,6 +607,98 @@ class ClinicalTrialsClient:
             "_prefetched_raw": raw_study,
             "_clinical_results_section": results_section,
         }
+
+    @classmethod
+    def _controlled_broad_recall_terms(cls, drug_name_set: Dict[str, Any]) -> List[str]:
+        """Small controlled term set for drug+QT full-text recall."""
+        raw_terms = (
+            list(drug_name_set.get("curated_match_terms") or [])
+            + list(drug_name_set.get("strong_match_terms") or [])
+            + list(drug_name_set.get("_strong_match_terms") or [])
+        )
+        out: List[str] = []
+        seen: Set[str] = set()
+        for term in raw_terms:
+            t = str(term or "").strip()
+            if len(t) < 3:
+                continue
+            key = t.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append(t)
+            if len(out) >= 8:
+                break
+        return out
+
+    def _search_broad_drug_qt_recall(
+        self,
+        drug_name_set: Dict[str, Any],
+        *,
+        max_results: int,
+        seen_nct: Set[str],
+    ) -> List[Dict[str, Any]]:
+        """
+        Controlled full-text drug+QT recall.
+
+        This is intentionally conservative:
+        - limited to curated/strong drug aliases;
+        - query combines a drug alias and a QT-specific token;
+        - candidate must have qt_specific protocol/results evidence after full-study fetch;
+        - candidate is labelled broad_drug_qt_recall and cannot become Primary unless
+          group-level QT attribution later supports the target drug.
+        """
+        out: List[Dict[str, Any]] = []
+        pending: Dict[str, Dict[str, Any]] = {}
+
+        for drug_term in self._controlled_broad_recall_terms(drug_name_set):
+            for qt_term in self._CONTROLLED_QT_RECALL_TERMS:
+                query = f'"{drug_term}" "{qt_term}"'
+                try:
+                    studies = self.search_studies(query, max_results=max_results, query_field="query.term")
+                except Exception:
+                    continue
+                for study in studies:
+                    basics = self._parse_protocol_study_basics(study)
+                    if not basics:
+                        continue
+                    nct_id = basics["nct_id"]
+                    if nct_id in seen_nct or nct_id in pending:
+                        continue
+                    basics["_broad_query_term"] = drug_term
+                    basics["_broad_qt_term"] = qt_term
+                    pending[nct_id] = {"basics": basics, "protocol": study}
+
+        for nct_id, item in pending.items():
+            raw = self.get_study_by_nct_id(nct_id) or {"protocolSection": item["protocol"]}
+            results_section = self.parse_results_section(raw)
+            protocol = raw.get("protocolSection") or item["protocol"] or {}
+            protocol_outcomes = classify_protocol_outcomes_module(protocol.get("outcomesModule") or {})
+            title_cls = classify_outcome_text(
+                f"{item['basics'].get('title', '')} {item['basics'].get('summary', '')}".strip()
+            )
+            has_qt_protocol = bool(protocol_outcomes.get("has_qt_specific")) or title_cls.get("evidence_type") == "qt_specific"
+            has_qt_results = bool(results_section.get("has_qt_results"))
+            if not (has_qt_protocol or has_qt_results):
+                continue
+
+            basics = item["basics"]
+            trial = {
+                **basics,
+                "qt_related": True,
+                "qt_related_title": title_cls.get("evidence_type") == "qt_specific",
+                "qt_related_outcome": protocol_outcomes.get("has_qt_specific", False),
+                "qt_outcome_measure": pick_protocol_qt_outcome_measure(protocol_outcomes),
+                "search_branch": "broad_drug_qt_recall",
+                "protocol_qt_hit": has_qt_protocol,
+                "results_qt_hit": has_qt_results,
+                "protocol_outcomes": protocol_outcomes,
+                "title_outcome_classification": title_cls,
+                "_prefetched_raw": raw,
+                "_clinical_results_section": results_section,
+            }
+            out.append(trial)
+        return out
 
     def search_qt_related_trials(
         self,
@@ -475,10 +731,10 @@ class ClinicalTrialsClient:
                 continue
             studies = self.search_studies_by_intervention(term, max_results=max_results)
             for study in studies:
-                if not self._strong_intervention_match(drug_name_set, study):
-                    continue
+                strong_match = self._strong_intervention_match(drug_name_set, study)
 
-                strict = self._parse_protocol_study(study)
+                # Strict protocol branch still requires strong intervention/arm alignment.
+                strict = self._parse_protocol_study(study) if strong_match else None
                 if strict:
                     nct_id = strict["nct_id"]
                     if nct_id not in seen_nct:
@@ -486,6 +742,9 @@ class ClinicalTrialsClient:
                         trials.append(strict)
                     continue
 
+                # Results recall branch: do not drop query.intr hits before fetching
+                # full results. Some QTcB/QTcF evidence is only present in
+                # resultsSection.adverseEventsModule and protocol outcomes may be silent.
                 basics = self._parse_protocol_study_basics(study)
                 if not basics:
                     continue
@@ -507,6 +766,19 @@ class ClinicalTrialsClient:
 
             seen_nct.add(nct_id)
             trials.append(recall_trial)
+
+        # Controlled full-text drug+QT fallback. This catches trials where the
+        # drug is not indexed under intervention but QT-specific evidence is
+        # present in posted results. It remains downstream-attributed and is not
+        # sufficient for Primary by itself.
+        broad_trials = self._search_broad_drug_qt_recall(
+            drug_name_set, max_results=max_results, seen_nct=seen_nct
+        )
+        for trial in broad_trials:
+            nct_id = trial.get("nct_id", "")
+            if nct_id and nct_id not in seen_nct:
+                seen_nct.add(nct_id)
+                trials.append(trial)
 
         return trials
 
@@ -590,6 +862,7 @@ class ClinicalTrialsClient:
                 "molecule_synonyms", "molecule_hierarchy",
                 "parent_molecule_chembl_id", "parent_pref_name",
                 "strong_match_terms", "related_match_terms", "weak_terms",
+                "curated_match_terms", "curated_alias_families",
                 "recall_audit_terms", "exclude_names", "enrichment_status",
             )
             if k in drug_name_set
@@ -683,8 +956,34 @@ class ClinicalTrialsClient:
         result.update(classified_stats)
 
         # ── adverse events & more info ────────────────────────────────────────
-        result["has_adverse_events"] = bool(results_section.get("adverseEventsModule"))
+        adverse_events_module = results_section.get("adverseEventsModule") or {}
+        result["has_adverse_events"] = bool(adverse_events_module)
         result["has_more_info"] = bool(results_section.get("moreInfoModule"))
+
+        # Generic AE/event-table QT parser. This captures QTcB/QTcF threshold
+        # results that are not represented as outcomeMeasuresModule outcomes.
+        ae_stats = cls._classify_adverse_event_results(adverse_events_module)
+        if ae_stats.get("qt_result_measures"):
+            result.setdefault("qt_result_measures", [])
+            result["qt_result_measures"].extend(ae_stats["qt_result_measures"])
+            result["has_qt_results"] = True
+        if ae_stats.get("ecg_conduction_result_measures"):
+            result.setdefault("ecg_conduction_result_measures", [])
+            result["ecg_conduction_result_measures"].extend(ae_stats["ecg_conduction_result_measures"])
+            result["has_ecg_conduction_results"] = True
+        if ae_stats.get("ecg_broad_result_measures"):
+            result.setdefault("ecg_broad_result_measures", [])
+            result["ecg_broad_result_measures"].extend(ae_stats["ecg_broad_result_measures"])
+            result["has_ecg_broad_results"] = True
+        if ae_stats.get("cardiac_ae_result_measures"):
+            result.setdefault("cardiac_ae_result_measures", [])
+            result["cardiac_ae_result_measures"].extend(ae_stats["cardiac_ae_result_measures"])
+            result["has_cardiac_ae_results"] = True
+        if ae_stats.get("classified_outcomes"):
+            result.setdefault("classified_outcomes", [])
+            result["classified_outcomes"].extend(ae_stats["classified_outcomes"])
+
+        result["total_qt_result_measure_objects"] = len(result.get("qt_result_measures") or [])
 
         if result.get("has_qt_results"):
             result["result_summary"] = (

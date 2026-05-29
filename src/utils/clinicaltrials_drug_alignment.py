@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, Iterable, List, Optional, Set
 
-from utils.clinicaltrials_result_evidence import is_qt_specific_outcome_text
 from utils.chembl_drug_name_enrichment import (
     build_drug_name_set_fallback,
     normalize_drug_term,
@@ -37,82 +36,118 @@ _COMBINATION_RE = re.compile(
 _NON_DRUG_INTERVENTION_TYPES = {"OTHER", "PROCEDURE", "BEHAVIORAL", "DEVICE", "DIETARY SUPPLEMENT"}
 
 
-_COMBO_SPLIT_RE = re.compile(r"\s*(?:\+|/|,|\band\b|\bwith\b)\s*", re.IGNORECASE)
-_FORMULATION_SUFFIX_RE = re.compile(
-    r"\s+(?:"
-    r"oral\s+solution|dry\s+syrup|tablets?|capsules?|injection|solution|"
-    r"suspension|cream|gel|patch|powder|drops|spray|"
-    r"\d+\s*(?:mg|mcg|g|ml|iu|unit|units)(?:\s|$)"
-    r").*$",
-    re.IGNORECASE,
-)
-_GENERIC_CLASS_ONLY_RE = re.compile(
-    r"^(?:bronchodilator agents?|antihistamines?|placebo|standard therapy|"
-    r"active comparator|vehicle control|sham)$",
-    re.IGNORECASE,
-)
-
-
 def _norm(text: str) -> str:
     return re.sub(r"\s+", " ", (text or "").strip().lower())
 
 
+def _tokenize_drug(name: str) -> str:
+    return strip_salt_form(name) or normalize_drug_term(name)
+
+
 def _normalize_match_term(term: str) -> str:
-    return _norm(strip_salt_form(term) or normalize_drug_term(term))
+    """Normalize one drug-name matching term and keep clinically meaningful hyphens."""
+    if term is None:
+        return ""
+    s = str(term).strip().lower()
+    if not s:
+        return ""
+    s = (
+        s.replace("‐", "-")
+         .replace("‑", "-")
+         .replace("‒", "-")
+         .replace("–", "-")
+         .replace("—", "-")
+         .replace("―", "-")
+         .replace("−", "-")
+    )
+    s = re.sub(r"\s+", " ", s)
+    s = re.sub(r"\s*-\s*", "-", s)
+    return s.strip()
 
 
-def _normalize_match_terms(terms: List[str]) -> List[str]:
+def _normalize_match_terms(terms: Iterable[str]) -> List[str]:
+    """Normalize, de-duplicate, and preserve order for matching terms."""
     out: List[str] = []
     seen: Set[str] = set()
     for term in terms or []:
         norm = _normalize_match_term(term)
-        if norm and norm not in seen:
+        if not norm or len(norm) <= 1:
+            continue
+        if norm not in seen:
             seen.add(norm)
             out.append(norm)
     return out
 
 
-def _field_components(field_text: str) -> List[str]:
-    """Split intervention/arm/results labels into normalized drug phrase components."""
-    norm = _norm(field_text)
-    if not norm:
-        return []
-    components: List[str] = []
-    for part in _COMBO_SPLIT_RE.split(norm):
-        part = part.strip()
-        if not part:
-            continue
-        components.append(part)
-        base = _FORMULATION_SUFFIX_RE.sub("", part).strip()
-        if base and base not in components:
-            components.append(base)
-    return components
+_CURATED_ALIAS_FAMILIES: Dict[str, List[str]] = {
+    "valproate_family": [
+        "valproic acid",
+        "valproate",
+        "valproate sodium",
+        "sodium valproate",
+        "divalproex",
+        "divalproex sodium",
+        "valproate semisodium",
+        "valproate semi-sodium",
+        "vpa",
+        "depakote",
+        "depacon",
+        "epilim",
+    ],
+}
 
 
-def _term_matches_drug_field(term: str, field_text: str) -> bool:
+def _append_unique_terms(payload: Dict[str, Any], key: str, terms: Iterable[str]) -> None:
+    public_key = key
+    private_key = f"_{key}"
+    payload.setdefault(public_key, [])
+    payload.setdefault(private_key, [])
+    existing_public = set(payload.get(public_key) or [])
+    existing_private = set(payload.get(private_key) or [])
+    for term in _normalize_match_terms(terms):
+        if term not in existing_public:
+            payload[public_key].append(term)
+            existing_public.add(term)
+        if term not in existing_private:
+            payload[private_key].append(term)
+            existing_private.add(term)
+
+
+def _apply_curated_alias_families(payload: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Normalized exact token/phrase match in a drug field label.
+    Generic active-moiety alias expansion.
 
-    Supports combination strings (A + B, A / B, A, B), formulation suffixes
-    (e.g. 'cetirizine dry syrup 10 mg'), and case-insensitive matching.
+    This is not a Valproic-Acid-only special case. It is a small curated alias-family
+    layer: when any known member is already present in pref_name/synonyms/parent names,
+    add the clinically used aliases for recall and exact alignment.
     """
-    norm_term = _normalize_match_term(term)
-    if not norm_term or not field_text:
-        return False
-    if _GENERIC_CLASS_ONLY_RE.match(_norm(field_text)):
-        return False
-    for comp in _field_components(field_text):
-        if comp == norm_term:
-            return True
-        if comp.startswith(norm_term + " "):
-            return True
-        if _term_in_text(norm_term, comp):
-            return True
-    return _term_in_text(norm_term, field_text)
-
-
-def _tokenize_drug(name: str) -> str:
-    return strip_salt_form(name) or normalize_drug_term(name)
+    seed_terms = set(_normalize_match_terms(
+        list(payload.get("strong_match_terms") or [])
+        + list(payload.get("_strong_match_terms") or [])
+        + list(payload.get("related_match_terms") or [])
+        + list(payload.get("_related_match_terms") or [])
+        + list(payload.get("weak_terms") or [])
+        + list(payload.get("_weak_terms") or [])
+        + [payload.get("pref_name", ""), payload.get("chembl_pref_name", ""), payload.get("parent_pref_name", "")]
+    ))
+    matched_families: List[str] = []
+    curated_terms: List[str] = []
+    for family, aliases in _CURATED_ALIAS_FAMILIES.items():
+        norm_aliases = _normalize_match_terms(aliases)
+        if seed_terms & set(norm_aliases):
+            matched_families.append(family)
+            curated_terms.extend(norm_aliases)
+    if curated_terms:
+        _append_unique_terms(payload, "strong_match_terms", curated_terms)
+        payload["curated_alias_families"] = sorted(set((payload.get("curated_alias_families") or []) + matched_families))
+        payload["curated_match_terms"] = _normalize_match_terms((payload.get("curated_match_terms") or []) + curated_terms)
+    payload["_all_terms"] = sorted(
+        set(payload.get("_strong_match_terms") or [])
+        | set(payload.get("_related_match_terms") or [])
+        | set(payload.get("_weak_terms") or [])
+        | set(payload.get("curated_match_terms") or [])
+    )
+    return payload
 
 
 def build_drug_name_set(
@@ -130,7 +165,7 @@ def build_drug_name_set(
     优先使用 ChEMBL enrichment 结果；否则回退到 pref_name 最小集。
     """
     if enriched and enriched.get("_strong_match_terms"):
-        return enriched
+        return _apply_curated_alias_families(enriched)
 
     payload = build_drug_name_set_fallback(pref_name)
     if synonyms:
@@ -155,24 +190,20 @@ def build_drug_name_set(
         | set(payload.get("_related_match_terms") or [])
         | set(payload.get("_weak_terms") or [])
     )
-    return payload
+    return _apply_curated_alias_families(payload)
 
 
 def _term_in_text(term: str, text: str) -> bool:
     if not term or not text:
         return False
     tl = _norm(text)
-    tn = _normalize_match_term(term)
-    if not tn:
-        return False
     # word-boundary match; allow hyphen/space variants
-    pattern = re.escape(tn).replace(r"\ ", r"[\s-]?")
+    pattern = re.escape(term).replace(r"\ ", r"[\s-]?")
     return bool(re.search(rf"(?<![a-z0-9]){pattern}(?![a-z0-9])", tl))
 
 
 def match_terms_in_text(terms: List[str], text: str) -> List[str]:
-    norm_terms = _normalize_match_terms(terms)
-    return [t for t in norm_terms if _term_matches_drug_field(t, text)]
+    return [t for t in terms if _term_in_text(t, text)]
 
 
 def _match_terms_in_text(terms: List[str], text: str) -> List[str]:
@@ -253,6 +284,24 @@ def extract_trial_drug_fields(raw_study: Optional[Dict[str, Any]]) -> Dict[str, 
             if title:
                 results_group_labels.append(title)
 
+    # adverseEventsModule uses eventGroups with group IDs such as OG000/OG001.
+    # QTcB/QTcF results can appear in AE tables rather than outcomeMeasures.
+    ae_module = results_section.get("adverseEventsModule") or {}
+    for grp in ae_module.get("eventGroups") or []:
+        if not isinstance(grp, dict):
+            continue
+        gid = (grp.get("id") or "").strip()
+        if gid and gid in seen_ids:
+            continue
+        if gid:
+            seen_ids.add(gid)
+        title = (grp.get("title") or grp.get("label") or "").strip()
+        desc_g = (grp.get("description") or "").strip()
+        entry = {"id": gid, "title": title, "description": desc_g}
+        results_groups.append(entry)
+        if title:
+            results_group_labels.append(title)
+
     title = (ident.get("briefTitle") or ident.get("officialTitle") or "").strip()
     summary = (desc.get("briefSummary") or desc.get("detailedDescription") or "").strip()
 
@@ -294,87 +343,6 @@ def _intervention_drug_names(interventions: List[Dict[str, Any]]) -> List[str]:
     return names
 
 
-def _intervention_name_matches(strong_terms: List[str], intervention: Dict[str, Any]) -> bool:
-    name = (intervention.get("name") or "").strip()
-    if name and any(_term_matches_drug_field(t, name) for t in strong_terms):
-        return True
-    for other in intervention.get("otherNames") or []:
-        other_name = str(other or "").strip()
-        if other_name and any(_term_matches_drug_field(t, other_name) for t in strong_terms):
-            return True
-    return False
-
-
-def _is_combination_intervention_name(name: str) -> bool:
-    if not name:
-        return False
-    if _COMBINATION_RE.search(name):
-        return True
-    return bool(_COMBO_SPLIT_RE.search(name))
-
-
-def _resolve_target_drug_role(
-    *,
-    strong_terms: List[str],
-    fields: Dict[str, Any],
-    interventions: List[Dict[str, Any]],
-    intervention_texts: List[str],
-    arm_texts: List[str],
-    matched_strong: Set[str],
-    matched_related: Set[str],
-    matched_in_title: List[str],
-    target_in_intervention: bool,
-    target_in_arm: bool,
-    intervention_drug_names: List[str],
-) -> str:
-    """Assign target_drug_role; intervention name match overrides description-only rescue cues."""
-    named_interventions = [
-        iv for iv in interventions if _intervention_name_matches(strong_terms, iv)
-    ]
-
-    if named_interventions:
-        combo_names = [
-            (iv.get("name") or "").strip()
-            for iv in named_interventions
-            if _is_combination_intervention_name(iv.get("name") or "")
-        ]
-        if combo_names:
-            return "combination_component"
-        if len(intervention_drug_names) > 1:
-            return "main_intervention"
-        return "main_intervention"
-
-    role_candidates: List[str] = []
-    for text in intervention_texts + arm_texts:
-        if not match_terms_in_text(strong_terms, text):
-            continue
-        ctx_role = _classify_context_role(text)
-        if ctx_role:
-            role_candidates.append(ctx_role)
-
-    if matched_strong and "rescue_medication" in role_candidates:
-        return "rescue_medication"
-    if matched_strong and "background_medication" in role_candidates:
-        return "background_medication"
-    if matched_strong and "active_comparator" in role_candidates:
-        return "active_comparator"
-    if matched_strong and "combination_component" in role_candidates:
-        return "combination_component"
-    if matched_related and not matched_strong:
-        return "related_drug_only"
-    if matched_strong and (target_in_intervention or target_in_arm):
-        return "main_intervention"
-    if matched_in_title and not matched_strong:
-        return "unclear"
-    other_drug_interventions = [
-        n for n in intervention_drug_names
-        if not match_terms_in_text(strong_terms, n)
-    ]
-    if other_drug_interventions and not matched_strong:
-        return "no_direct_match"
-    return "unclear"
-
-
 def assess_drug_trial_alignment(
     drug_name_set: Dict[str, Any],
     raw_study: Optional[Dict[str, Any]],
@@ -388,18 +356,17 @@ def assess_drug_trial_alignment(
 ) -> Dict[str, Any]:
     """Assess whether a trial's QT evidence can be attributed to the target drug."""
     fields = extract_trial_drug_fields(raw_study)
-    strong_terms = _normalize_match_terms(drug_name_set.get("_strong_match_terms") or [])
-    related_terms = _normalize_match_terms(drug_name_set.get("_related_match_terms") or [])
-    all_terms = _normalize_match_terms(drug_name_set.get("_all_terms") or [])
+    strong_terms = drug_name_set.get("_strong_match_terms") or []
+    related_terms = drug_name_set.get("_related_match_terms") or []
+    all_terms = drug_name_set.get("_all_terms") or []
 
-    interventions = fields["interventions"]
     intervention_texts = [
         " ".join([
             iv.get("name", ""),
             iv.get("description", ""),
             " ".join(iv.get("arm_group_labels") or []),
         ])
-        for iv in interventions
+        for iv in fields["interventions"]
     ]
     arm_texts = [
         " ".join([ag.get("label", ""), ag.get("description", "")])
@@ -417,7 +384,7 @@ def assess_drug_trial_alignment(
     def _collect(terms: List[str], texts: List[str], bucket: Set[str]) -> None:
         for text in texts:
             for term in terms:
-                if _term_matches_drug_field(term, text):
+                if _term_in_text(term, text):
                     bucket.add(term)
 
     _collect(strong_terms, intervention_texts, matched_strong)
@@ -425,37 +392,60 @@ def assess_drug_trial_alignment(
     _collect(strong_terms, results_group_texts, matched_strong)
     _collect(related_terms, intervention_texts + arm_texts + results_group_texts, matched_related)
 
-    matched_in_title = match_terms_in_text(all_terms, title_summary)
+    matched_in_title = _match_terms_in_text(all_terms, title_summary)
     matched_related -= matched_strong
 
-    target_in_intervention = any(
-        _intervention_name_matches(strong_terms, iv) for iv in interventions
+    target_in_intervention = bool(matched_strong & set(
+        t for text in intervention_texts for t in strong_terms if _term_in_text(t, text)
+    )) or bool(_match_terms_in_text(strong_terms, " ".join(fields["intervention_names"])))
+
+    target_in_arm = bool(matched_strong) and any(
+        _match_terms_in_text(strong_terms, text) for text in arm_texts
     )
-    target_in_arm = any(
-        match_terms_in_text(strong_terms, text) for text in arm_texts
-    )
-    target_in_results_group = any(
-        match_terms_in_text(strong_terms, text) for text in results_group_texts
+    target_in_results_group = bool(matched_strong) and any(
+        _match_terms_in_text(strong_terms, text) for text in results_group_texts
     )
     target_mentioned = bool(
         matched_in_title or matched_strong or matched_related or target_in_intervention
     )
 
-    intervention_drug_names = _intervention_drug_names(interventions)
+    intervention_drug_names = _intervention_drug_names(fields["interventions"])
+    other_drug_interventions = [
+        n for n in intervention_drug_names
+        if not _match_terms_in_text(strong_terms + related_terms, n)
+    ]
 
-    target_drug_role = _resolve_target_drug_role(
-        strong_terms=strong_terms,
-        fields=fields,
-        interventions=interventions,
-        intervention_texts=intervention_texts,
-        arm_texts=arm_texts,
-        matched_strong=matched_strong,
-        matched_related=matched_related,
-        matched_in_title=matched_in_title,
-        target_in_intervention=target_in_intervention,
-        target_in_arm=target_in_arm,
-        intervention_drug_names=intervention_drug_names,
-    )
+    # Context role from matched intervention/arm text
+    role_candidates: List[str] = []
+    for text in intervention_texts + arm_texts:
+        if not _match_terms_in_text(strong_terms + related_terms, text):
+            continue
+        ctx_role = _classify_context_role(text)
+        if ctx_role:
+            role_candidates.append(ctx_role)
+
+    target_drug_role = "unclear"
+    if matched_strong and "rescue_medication" in role_candidates and "main_intervention" not in role_candidates:
+        target_drug_role = "rescue_medication"
+    elif matched_strong and "background_medication" in role_candidates:
+        target_drug_role = "background_medication"
+    elif matched_strong and "active_comparator" in role_candidates:
+        target_drug_role = "active_comparator"
+    elif matched_strong and "combination_component" in role_candidates:
+        target_drug_role = "combination_component"
+    elif matched_related and not matched_strong:
+        target_drug_role = "related_drug_only"
+    elif matched_strong and (target_in_intervention or target_in_arm):
+        if len(intervention_drug_names) > 1 and _COMBINATION_RE.search(
+            " ".join(intervention_texts + arm_texts)
+        ):
+            target_drug_role = "combination_component"
+        else:
+            target_drug_role = "main_intervention"
+    elif matched_in_title and not matched_strong:
+        target_drug_role = "unclear"
+    elif other_drug_interventions and not matched_strong:
+        target_drug_role = "no_direct_match"
 
     drug_match_level = "unclear"
     if target_drug_role in {"rescue_medication", "background_medication", "covariate_only"}:
@@ -464,15 +454,9 @@ def assess_drug_trial_alignment(
         drug_match_level = "false_positive"
     elif target_drug_role == "no_direct_match":
         drug_match_level = "false_positive"
-    elif target_drug_role == "combination_component" and (
-        target_in_intervention or target_in_arm
-    ):
-        drug_match_level = "medium"
     elif target_drug_role in {"active_comparator", "combination_component"}:
         drug_match_level = "medium"
     elif target_drug_role == "main_intervention":
-        drug_match_level = "strong"
-    elif target_in_intervention or target_in_arm:
         drug_match_level = "strong"
     elif matched_in_title and not matched_strong:
         drug_match_level = "weak"
@@ -494,8 +478,6 @@ def assess_drug_trial_alignment(
         evidence_attribution_level = "weak" if has_ep_signal else "not_attributable"
     elif drug_match_level == "false_positive":
         evidence_attribution_level = "not_attributable"
-    elif has_ep_signal and (target_in_intervention or target_in_arm):
-        evidence_attribution_level = "direct"
     elif has_ep_signal:
         evidence_attribution_level = "unclear"
 
@@ -576,7 +558,6 @@ def assess_qt_result_attribution(
         "qt_result_groups": [],
         "target_group_ids": [],
         "non_target_group_ids": [],
-        "combination_group_ids": [],
         "qt_result_for_target_drug": False,
         "qt_result_for_comparator_only": False,
         "summary": "No QT/QTc result outcome measures to attribute.",
@@ -584,10 +565,11 @@ def assess_qt_result_attribution(
     if not qt_result_measures:
         return empty
 
-    strong_terms = _normalize_match_terms(drug_name_set.get("_strong_match_terms") or [])
-    related_terms = _normalize_match_terms(drug_name_set.get("_related_match_terms") or [])
+    strong_terms = drug_name_set.get("_strong_match_terms") or []
+    related_terms = drug_name_set.get("_related_match_terms") or []
     fields = extract_trial_drug_fields(raw_study)
 
+    # Build group id → text map from all QT measures
     group_map: Dict[str, Dict[str, str]] = {}
     for om in qt_result_measures:
         for grp in om.get("groups") or []:
@@ -600,16 +582,11 @@ def assess_qt_result_attribution(
                 grp.get("title") or "",
                 grp.get("description") or "",
             ])
-            group_map[gid] = {
-                "title": grp.get("title") or "",
-                "description": grp.get("description") or "",
-                "text": text,
-            }
+            group_map[gid] = {"title": grp.get("title") or "", "description": grp.get("description") or "", "text": text}
 
     qt_result_groups: List[Dict[str, Any]] = []
     target_group_ids: Set[str] = set()
     non_target_group_ids: Set[str] = set()
-    combination_group_ids: Set[str] = set()
     has_comparator_group = False
     has_overall_only = False
 
@@ -619,12 +596,8 @@ def assess_qt_result_attribution(
         related_hits = _match_terms_in_text(related_terms, text)
         is_positive_control = bool(_POSITIVE_CONTROL_RE.search(text))
         is_comparator = bool(_COMPARATOR_RE.search(text)) or is_positive_control
-        is_combination_group = _is_combination_intervention_name(text)
 
-        if strong_hits and is_combination_group:
-            attribution = "combination_arm"
-            combination_group_ids.add(gid)
-        elif strong_hits:
+        if strong_hits:
             attribution = "target_drug"
             target_group_ids.add(gid)
         elif related_hits and not strong_hits:
@@ -661,11 +634,6 @@ def assess_qt_result_attribution(
         )
     elif qt_result_for_target:
         summary = "QT/QTc results are reported for treatment group(s) containing the target drug."
-    elif combination_group_ids:
-        summary = (
-            "QT/QTc results appear only for combination arm group(s); "
-            "not attributable to target drug alone."
-        )
     elif qt_result_for_comparator_only:
         summary = (
             "QT/QTc results appear only for comparator/other-drug groups; "
@@ -681,7 +649,6 @@ def assess_qt_result_attribution(
         "qt_result_groups": qt_result_groups,
         "target_group_ids": sorted(target_group_ids),
         "non_target_group_ids": sorted(non_target_group_ids),
-        "combination_group_ids": sorted(combination_group_ids),
         "qt_result_for_target_drug": qt_result_for_target,
         "qt_result_for_comparator_only": qt_result_for_comparator_only,
         "summary": summary,
@@ -708,47 +675,65 @@ _EXCLUDED_PRIMARY_ROLES = frozenset({
     "active_comparator",
     "covariate_only",
 })
-_COMBINATION_ROLES = frozenset({
-    "combination_component",
-    "combination_drug",
-})
 
 
-def _has_strict_qt_protocol_endpoint(
-    protocol_outcomes: Dict[str, Any],
-    qt_outcome_measure: str,
-    title_classification: Dict[str, Any],
-) -> bool:
-    """Primary protocol QT requires explicit QT/QTc wording on endpoint labels."""
-    if is_qt_specific_outcome_text(qt_outcome_measure or ""):
-        return True
-
-    for om in protocol_outcomes.get("qt_specific_outcomes") or []:
-        label = " ".join(
-            part for part in (om.get("title") or "", om.get("measure") or "") if part
-        ).strip()
-        if is_qt_specific_outcome_text(label):
-            return True
-
-    title_text = title_classification.get("raw_text") or ""
-    return is_qt_specific_outcome_text(title_text)
-
-
-def _has_target_qt_result_attribution(
+def _target_relevant_for_primary_qt(
     alignment: Dict[str, Any],
     qt_result_attribution: Dict[str, Any],
 ) -> bool:
+    """Target drug is plausibly linked to a QT actual result."""
     return bool(
         qt_result_attribution.get("qt_result_for_target_drug")
-        and (
-            alignment.get("target_drug_in_results_group")
-            or qt_result_attribution.get("target_group_ids")
+        or alignment.get("target_drug_in_intervention")
+        or alignment.get("target_drug_in_arm_group")
+        or alignment.get("target_drug_in_results_group")
+        or (
+            alignment.get("drug_match_level") in {"strong", "weak"}
+            and alignment.get("evidence_attribution_level") != "not_attributable"
         )
     )
 
 
-def _is_combination_role(role: str) -> bool:
-    return role in _COMBINATION_ROLES
+def _hard_false_positive_exclude(alignment: Dict[str, Any]) -> bool:
+    """Exclude Primary QT only when match is false_positive with zero structural linkage."""
+    return (
+        alignment.get("drug_match_level") == "false_positive"
+        and not alignment.get("target_drug_in_intervention")
+        and not alignment.get("target_drug_in_arm_group")
+        and not alignment.get("target_drug_in_results_group")
+    )
+
+
+def _is_strict_false_positive_mapping(
+    alignment: Dict[str, Any],
+    qt_result_attribution: Dict[str, Any],
+    has_qt_results: bool,
+) -> bool:
+    """Strict false-positive: no intervention/arm/results linkage and no attributable QT result."""
+    return (
+        alignment.get("drug_match_level") == "false_positive"
+        and not alignment.get("target_drug_in_intervention")
+        and not alignment.get("target_drug_in_arm_group")
+        and not alignment.get("target_drug_in_results_group")
+        and not has_qt_results
+        and not qt_result_attribution.get("qt_result_for_target_drug")
+    )
+
+
+def _protocol_target_relevant(alignment: Dict[str, Any]) -> bool:
+    return bool(
+        alignment.get("target_drug_in_intervention")
+        or alignment.get("target_drug_in_arm_group")
+        or alignment.get("drug_match_level") in {"strong", "weak"}
+    )
+
+
+def _recall_branch_target_relevant(alignment: Dict[str, Any]) -> bool:
+    return bool(
+        alignment.get("target_drug_in_intervention")
+        or alignment.get("target_drug_in_arm_group")
+        or alignment.get("drug_match_level") in {"strong", "weak"}
+    )
 
 
 def classify_evidence_tier(
@@ -765,11 +750,22 @@ def classify_evidence_tier(
     tier_reason: Optional[Dict[str, str]] = None,
 ) -> str:
     """
-    Evidence tier assignment with strict Primary QT gating.
+    Evidence tier assignment.
 
-    Primary QT actual results require explicit results-group attribution.
-    Primary QT protocol outcomes require explicit QT/QTc endpoint wording.
-    Combination components are routed to combination_qt_evidence, not direct primary.
+    Primary QT actual results are evaluated before false-positive exclusion.
+    The results_recall branch is trusted when the target drug was retrieved through
+    query.intr and strong intervention/arm matching.
+    Absence of explicit target drug name in results group should not automatically
+    exclude QT actual result if the target drug appears in intervention or arm group.
+
+    Tier hierarchy:
+      Primary  : direct_qt_actual_result | direct_qt_protocol_outcome
+                 | results_only_qt_actual_result
+      Support  : direct_ecg_conduction_evidence | ecg_broad_supportive_evidence
+                 comparator_qt_evidence | combination_qt_evidence | combination_ecg_evidence
+      Exclude  : rescue_or_background_only | false_positive_mapping
+                 combination_context_only | non_qt_cardiology_endpoint
+                 non_qt_excluded | manual_review_required
     """
     role = alignment.get("target_drug_role", "unclear")
     match_level = alignment.get("drug_match_level", "unclear")
@@ -777,13 +773,15 @@ def classify_evidence_tier(
     protocol_outcomes = protocol_outcomes or {}
     title_classification = title_classification or {}
     results_section = results_section or {}
+    if qt_outcome_measure is None:
+        qt_outcome_measure = ""
+    if tier_reason is None:
+        tier_reason = {}
 
-    def _set_reason(reason: str) -> None:
-        if tier_reason is not None:
-            tier_reason["reason"] = reason
-
+    # ── signals ──────────────────────────────────────────────────────────────
     has_qt_protocol = protocol_outcomes.get("has_qt_specific", False)
     has_qt_title = title_classification.get("evidence_type") == "qt_specific"
+    # has_qt_results is qt_specific only (not broad ECG abnormalities).
     has_qt_results = bool(results_section.get("has_qt_results"))
 
     has_cond_protocol = protocol_outcomes.get("has_ecg_conduction", False)
@@ -796,141 +794,128 @@ def classify_evidence_tier(
         protocol_outcomes.get("has_non_qt_cardiology", False)
         or bool(results_section.get("has_non_qt_cardiology_results"))
     )
+    has_qt_signal = has_qt_protocol or has_qt_title or has_qt_results
+    has_ecg_signal = has_qt_signal or has_cond_protocol or has_cond_results
 
     target_in_intervention = bool(alignment.get("target_drug_in_intervention"))
     target_in_arm = bool(alignment.get("target_drug_in_arm_group"))
-    qt_for_target = _has_target_qt_result_attribution(alignment, qt_result_attribution)
-    qt_comparator_only = bool(qt_result_attribution.get("qt_result_for_comparator_only"))
-    strict_qt_protocol = _has_strict_qt_protocol_endpoint(
-        protocol_outcomes,
-        qt_outcome_measure,
-        title_classification,
-    )
 
-    # 1. rescue / background / concomitant only
+    # ── gate: rescue / background / covariate always excluded ────────────────
     if role in {"rescue_medication", "background_medication", "covariate_only"}:
-        _set_reason("Target drug appears only as rescue/background/concomitant medication.")
         return "rescue_or_background_only"
 
-    # 2. comparator-only actual QT result
-    if has_qt_results and qt_comparator_only and not qt_for_target:
-        _set_reason("QT/QTc actual results belong to comparator/other-drug groups only.")
-        return "comparator_qt_evidence"
-
-    # 3. direct QT actual result
+    # ── PRIMARY: results-only QT actual result ─────────────────────────────
+    # Conservative rule: results-only Primary requires group-level attribution
+    # to the target drug. Merely finding the drug in intervention/arm or via a
+    # broad recall query is not enough for Primary.
     if (
-        has_qt_results
-        and qt_for_target
-        and not qt_comparator_only
-        and role not in _EXCLUDED_PRIMARY_ROLES
-        and not _is_combination_role(role)
-    ):
-        _set_reason("QT/QTc actual result attributed to target-drug results group.")
-        return "direct_qt_actual_result"
-
-    # 4. results-only QT actual result
-    if (
-        search_branch == "results_recall"
-        and has_qt_results
+        search_branch in {"results_recall", "broad_drug_qt_recall"}
         and results_qt_hit
-        and qt_for_target
-        and not qt_comparator_only
+        and has_qt_results
+        and qt_result_attribution.get("qt_result_for_target_drug")
         and role not in _EXCLUDED_PRIMARY_ROLES
-        and not _is_combination_role(role)
+        and role != "combination_component"
+        and not _hard_false_positive_exclude(alignment)
     ):
-        _set_reason("Results-recall branch with target-drug QT/QTc actual result attribution.")
         return "results_only_qt_actual_result"
 
-    # 5. combination QT evidence
-    if _is_combination_role(role) and (
-        (has_qt_results and (qt_for_target or qt_result_attribution.get("combination_group_ids")))
-        or (protocol_qt_hit and strict_qt_protocol)
-        or has_qt_protocol
-    ):
-        _set_reason(
-            "QT-specific endpoint/result but target drug is a combination component; "
-            "classified as combination_qt_evidence rather than direct primary."
-        )
-        return "combination_qt_evidence"
+    # ── PRIMARY: direct QT actual result (qt_specific resultsSection only) ───
+    # Require actual QT/QTc result attribution to the target group. If QT results
+    # exist but group attribution is unclear, send to review/supportive rather
+    # than inflating Primary.
+    if has_qt_results and (results_qt_hit or has_qt_results):
+        if (
+            qt_result_attribution.get("qt_result_for_target_drug")
+            and role not in _EXCLUDED_PRIMARY_ROLES
+            and role != "combination_component"
+            and not _hard_false_positive_exclude(alignment)
+        ):
+            return "direct_qt_actual_result"
 
-    # 6. direct QT protocol outcome
+    # ── PRIMARY: protocol QT outcome ─────────────────────────────────────────
     if (
         protocol_qt_hit
-        and strict_qt_protocol
-        and (target_in_intervention or target_in_arm)
+        and (has_qt_protocol or has_qt_title)
+        and _protocol_target_relevant(alignment)
         and role not in _EXCLUDED_PRIMARY_ROLES
-        and not _is_combination_role(role)
     ):
-        _set_reason("Explicit QT/QTc protocol endpoint with target drug in intervention/arm.")
         return "direct_qt_protocol_outcome"
 
-    # 7. actual QT result needs review
-    if (
-        has_qt_results
-        and not qt_for_target
-        and not qt_comparator_only
-        and match_level != "false_positive"
+    # ── false positive (strict; must not override Primary tiers above) ───────
+    if _is_strict_false_positive_mapping(
+        alignment, qt_result_attribution, has_qt_results
     ):
-        _set_reason("QT/QTc actual results present but target-drug group attribution is unclear.")
-        return "actual_result_needs_review"
-
-    # 8. ECG conduction supportive
-    if (has_cond_protocol or has_cond_results) and match_level in {"strong", "medium", "weak"}:
-        if role == "active_comparator":
-            _set_reason("ECG conduction endpoint for active comparator.")
-            return "comparator_ecg_evidence"
-        if _is_combination_role(role):
-            _set_reason("ECG conduction endpoint for combination component.")
-            return "combination_ecg_evidence"
-        _set_reason("ECG conduction endpoint without QT-specific primary evidence.")
-        return "direct_ecg_conduction_evidence"
-
-    # 9. broad ECG supportive
-    if has_broad_protocol or has_broad_results or (
-        protocol_qt_hit and not strict_qt_protocol and (has_qt_protocol or has_qt_title)
-    ):
-        if _is_combination_role(role) and not has_qt_results and not strict_qt_protocol:
-            _set_reason("Combination context without QT-specific endpoint.")
-            return "combination_context_only"
-        if role == "active_comparator":
-            _set_reason("Broad ECG endpoint for active comparator.")
-            return "comparator_ecg_evidence"
-        if _is_combination_role(role):
-            _set_reason("Broad ECG endpoint for combination component.")
-            return "combination_ecg_evidence"
-        _set_reason("Broad ECG endpoint without QT-specific primary evidence.")
-        return "ecg_broad_supportive_evidence"
-
-    # 10. false positive mapping
-    if (
-        match_level == "false_positive"
-        and not target_in_intervention
-        and not target_in_arm
-        and not alignment.get("target_drug_in_results_group")
-        and not qt_for_target
-    ):
-        _set_reason("No structural drug match and no attributable QT result.")
         return "false_positive_mapping"
 
-    # 11. non-QT excluded / manual review
-    if has_non_qt_cardiology and not has_qt_results and not strict_qt_protocol:
-        _set_reason("Non-QT cardiology endpoint without QT-specific evidence.")
+    # ── manual review for QT results that cannot be clearly attributed ─────────
+    if has_qt_results and not _is_strict_false_positive_mapping(
+        alignment, qt_result_attribution, has_qt_results
+    ):
+        if qt_result_attribution.get("qt_result_for_comparator_only"):
+            return "comparator_qt_evidence"
+        if role == "combination_component":
+            return "combination_qt_evidence"
+        if match_level == "unclear":
+            return "manual_review_required"
+        if (
+            (target_in_intervention or target_in_arm or search_branch == "broad_drug_qt_recall")
+            and not qt_result_attribution.get("qt_result_for_target_drug")
+            and role not in _EXCLUDED_PRIMARY_ROLES
+        ):
+            return "actual_result_needs_review"
+
+    # ── combination with no QT/ECG signal ────────────────────────────────────
+    if role == "combination_component" and not has_qt_signal and not has_ecg_signal:
+        return "combination_context_only"
+
+    # ── non-QT cardiology only (e.g. infarct size, ECG changes) ──────────────
+    if has_non_qt_cardiology and not has_qt_signal and not has_cond_protocol and not has_cond_results:
         return "non_qt_cardiology_endpoint"
 
+    # ── no QT/ECG signal at all ───────────────────────────────────────────────
     if (
-        not has_qt_results
-        and not strict_qt_protocol
+        not has_qt_signal
         and not has_cond_protocol
         and not has_cond_results
         and not has_broad_protocol
         and not has_broad_results
     ):
-        _set_reason("No QT/ECG electrophysiology evidence matched.")
         return "non_qt_excluded"
 
-    if has_qt_title and match_level in {"strong", "medium", "weak"}:
-        _set_reason("QT-related title context without attributable endpoint/result.")
-        return "direct_qt_context"
+    # ── helpers for supportive tiers ─────────────────────────────────────────
+    def _qt_tier(main_tier: str) -> str:
+        if not has_qt_signal:
+            return main_tier
+        if role == "active_comparator":
+            return "comparator_qt_evidence"
+        if role == "combination_component":
+            return "combination_qt_evidence"
+        return main_tier
 
-    _set_reason("Evidence present but tier assignment remains uncertain.")
+    def _ecg_tier(main_tier: str) -> str:
+        if role == "active_comparator":
+            return "comparator_ecg_evidence"
+        if role == "combination_component":
+            return "combination_ecg_evidence"
+        return main_tier
+
+    # ── supportive: comparator/combination QT actual results missed above ────
+    if has_qt_results and role == "active_comparator":
+        return "comparator_qt_evidence"
+    if has_qt_results and role == "combination_component":
+        return "combination_qt_evidence"
+
+    if has_qt_title and match_level in {"strong", "weak"}:
+        return _qt_tier("direct_qt_context")
+
+    # ── ECG conduction (supportive; below Primary) ───────────────────────────
+    if (has_cond_protocol or has_cond_results) and match_level in {"strong", "medium", "weak"}:
+        return _ecg_tier("direct_ecg_conduction_evidence")
+
+    # ── broad ECG only (supportive; never Primary QT) ────────────────────────
+    if has_broad_protocol or has_broad_results:
+        if role == "combination_component" and not has_qt_signal:
+            return "combination_context_only"
+        return _ecg_tier("ecg_broad_supportive_evidence")
+
     return "manual_review_required"
